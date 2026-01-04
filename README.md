@@ -48,6 +48,52 @@ python run.py
    - Open browser to `http://localhost:5000`
    - Dashboard and all pages are accessible
 
+## Production Deployment
+
+### Systemd Service Setup
+
+To run the service automatically on system boot:
+
+1. **Install the CAN Capture Service:**
+```bash
+sudo ./install-service.sh
+```
+
+2. **Enable CAN interfaces at startup (optional but recommended):**
+```bash
+sudo ./install-can-interfaces.sh
+```
+
+3. **Start the services:**
+```bash
+sudo systemctl start can-capture-service
+sudo systemctl start enable-can-interfaces
+```
+
+### Service Management
+
+**CAN Capture Service:**
+- Start: `sudo systemctl start can-capture-service`
+- Stop: `sudo systemctl stop can-capture-service`
+- Restart: `sudo systemctl restart can-capture-service`
+- Status: `sudo systemctl status can-capture-service`
+- View logs: `sudo journalctl -u can-capture-service -f`
+- Enable on boot: `sudo systemctl enable can-capture-service`
+- Disable on boot: `sudo systemctl disable can-capture-service`
+
+**CAN Interfaces Service:**
+- Start: `sudo systemctl start enable-can-interfaces`
+- Stop: `sudo systemctl stop enable-can-interfaces`
+- Status: `sudo systemctl status enable-can-interfaces`
+- View logs: `sudo journalctl -u enable-can-interfaces -f`
+
+### Service Features
+
+- **Auto-start on boot**: Services are enabled by default after installation
+- **Auto-restart**: The CAN Capture Service automatically restarts if it crashes
+- **Dependency management**: CAN interfaces are enabled before the capture service starts
+- **Logging**: Service logs are available via `journalctl`
+
 ## Project Structure
 
 ```
@@ -68,6 +114,10 @@ can_capture_service/
 ├── config.yaml            # Configuration file
 ├── requirements.txt       # Python dependencies
 ├── run.py                 # Application entry point
+├── can-capture-service.service      # Systemd service file
+├── enable-can-interfaces.service    # Systemd service for CAN interfaces
+├── install-service.sh               # Service installation script
+├── install-can-interfaces.sh        # CAN interfaces service installer
 └── README.md              # This file
 ```
 

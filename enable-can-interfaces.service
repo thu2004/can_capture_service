@@ -1,0 +1,16 @@
+[Unit]
+Description=Enable CAN interfaces (can0 and can1)
+After=network.target
+Before=can-capture-service.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/bash -c 'ip link set can0 up type can bitrate 1000000 || true'
+ExecStart=/bin/bash -c 'ip link set can1 up type can bitrate 1000000 || true'
+ExecStop=/bin/bash -c 'ip link set can0 down || true'
+ExecStop=/bin/bash -c 'ip link set can1 down || true'
+
+[Install]
+WantedBy=multi-user.target
+

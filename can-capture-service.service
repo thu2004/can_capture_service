@@ -1,0 +1,19 @@
+[Unit]
+Description=CAN Capture Service
+After=network.target
+
+[Service]
+Type=simple
+User=thu
+Group=thu
+WorkingDirectory=/home/thu/can_capture_service
+Environment="PATH=/home/thu/can_capture_service/venv/bin:/usr/local/bin:/usr/bin:/bin"
+ExecStart=/home/thu/can_capture_service/venv/bin/python3 /home/thu/can_capture_service/run.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+
