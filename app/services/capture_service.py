@@ -281,7 +281,7 @@ class CaptureService:
                 session.status = 'stopped'
                 session.stop_time = datetime.now()
                 self._save_session_metadata(session)
-            except:
+            except Exception:
                 pass
             return {
                 'success': False,
@@ -393,7 +393,6 @@ class CaptureService:
                     # Check if process is still running
                     status = metadata.get('status', 'stopped')
                     worker_pid = metadata.get('worker_pid')
-                    start_time_str = metadata.get('start_time')
                     
                     # Don't reclassify stopped sessions - if it's marked as stopped, keep it stopped
                     # Only check running sessions to see if they crashed

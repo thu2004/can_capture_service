@@ -1,10 +1,9 @@
 """
 Rotation and space limit management
 """
-import os
 from pathlib import Path
 from typing import Dict, Any, Optional, Tuple
-from datetime import datetime, timedelta
+from datetime import datetime
 from app.utils.logger import get_logger
 
 logger = get_logger(__name__, log_type='backend')
@@ -84,7 +83,7 @@ class RotationManager:
         rotation_action = self.rotation.get('rotation_action', 'rotate')
         
         if rotation_action == 'stop':
-            logger.info(f'Rotation action is "stop", not rotating file')
+            logger.info('Rotation action is "stop", not rotating file')
             return None
         
         try:

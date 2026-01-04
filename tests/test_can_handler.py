@@ -4,10 +4,8 @@ Tests for CAN Handler (candump integration)
 Copyright (c) 2026 CTL Technology AB
 Licensed under the MIT License
 """
-import pytest
 import subprocess
-from unittest.mock import Mock, patch, MagicMock, mock_open
-from pathlib import Path
+from unittest.mock import Mock, patch, mock_open
 from worker.can_handler import CANHandler
 
 

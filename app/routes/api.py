@@ -516,7 +516,6 @@ def get_system_status():
     try:
         from app.services.file_service import FileService
         from app.services.capture_service import CaptureService
-        from app.services.can_service import CANService
         
         capture_dir = current_app.config['CAPTURE_DIR']
         metadata_dir = current_app.config['METADATA_DIR']
@@ -586,7 +585,7 @@ def tail_logs():
                 config_data = Config._load_config()
                 backend_logging = config_data.get('logging', {}).get('backend', {})
                 max_size_mb = backend_logging.get('max_size_mb', 100)
-            except:
+            except Exception:
                 max_size_mb = 100
         
         lines = int(request.args.get('lines', 100))
@@ -653,7 +652,7 @@ def get_log_info():
                 config_data = Config._load_config()
                 backend_logging = config_data.get('logging', {}).get('backend', {})
                 max_size_mb = backend_logging.get('max_size_mb', 100)
-            except:
+            except Exception:
                 max_size_mb = 100
         
         # Create log file and directory if they don't exist

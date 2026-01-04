@@ -1,10 +1,9 @@
 """
 File operations
 """
-import os
 import json
 from pathlib import Path
-from typing import List, Dict, Any, Optional
+from typing import Dict, Any, Optional
 from datetime import datetime
 from app.utils.logger import get_logger
 from app.utils.validators import validate_filename

@@ -1,7 +1,6 @@
 """
 Main worker process for CAN capture using candump
 """
-import os
 import sys
 import signal
 import time
@@ -14,8 +13,8 @@ import json
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from worker.rotation_manager import RotationManager
-from app.utils.logger import setup_logging_standalone, get_logger
+from worker.rotation_manager import RotationManager  # noqa: E402
+from app.utils.logger import setup_logging_standalone, get_logger  # noqa: E402
 
 # Initialize logging before using logger (backend logger for workers)
 setup_logging_standalone(log_type='backend')
@@ -213,7 +212,7 @@ class CaptureWorker:
                 if 'output_file_handle' in locals():
                     try:
                         output_file_handle.close()
-                    except:
+                    except Exception:
                         pass
                 raise
             

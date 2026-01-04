@@ -4,10 +4,8 @@ Tests for File Service
 Copyright (c) 2026 CTL Technology AB
 Licensed under the MIT License
 """
-import pytest
 import json
-import shutil
-from unittest.mock import Mock, patch, mock_open
+from unittest.mock import patch
 from pathlib import Path
 from datetime import datetime, timedelta
 from app.services.file_service import FileService

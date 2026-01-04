@@ -4,11 +4,7 @@ Tests for Capture Service
 Copyright (c) 2026 CTL Technology AB
 Licensed under the MIT License
 """
-import pytest
-import json
-import time
-from unittest.mock import Mock, patch, MagicMock
-from pathlib import Path
+from unittest.mock import Mock, patch
 from app.services.capture_service import CaptureService
 from app.models.session import CaptureSession
 

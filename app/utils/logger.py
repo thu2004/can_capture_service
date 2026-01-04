@@ -5,7 +5,6 @@ import logging
 import logging.handlers
 import yaml
 from pathlib import Path
-from flask import current_app
 
 
 # Global flags to track if logging has been initialized
@@ -36,10 +35,8 @@ def _setup_logging_from_config(log_level_str='INFO', log_file_path='./logs/app.l
     # Get or create a logger for this type
     if log_type == 'frontend':
         logger_name = 'frontend'
-        initialized_flag = '_frontend_logging_initialized'
     else:
         logger_name = 'backend'
-        initialized_flag = '_backend_logging_initialized'
     
     app_logger = logging.getLogger(logger_name)
     app_logger.setLevel(log_level)

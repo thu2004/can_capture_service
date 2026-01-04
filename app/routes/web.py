@@ -22,7 +22,6 @@ def index():
     try:
         from app.services.capture_service import CaptureService
         from app.services.file_service import FileService
-        from app.services.can_service import CANService
         
         # Get system status
         capture_dir = current_app.config['CAPTURE_DIR']
@@ -80,7 +79,6 @@ def capture():
     """Capture control page"""
     try:
         from app.services.capture_service import CaptureService
-        from app.services.can_service import CANService
         
         # Get available interfaces
         can_service = get_can_service()

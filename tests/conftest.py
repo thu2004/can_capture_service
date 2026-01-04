@@ -5,12 +5,10 @@ Copyright (c) 2026 CTL Technology AB
 Licensed under the MIT License
 """
 import pytest
-import subprocess
 import tempfile
 import shutil
 from pathlib import Path
-from unittest.mock import Mock, MagicMock, patch
-from typing import Dict, Any
+from unittest.mock import Mock, patch
 
 
 @pytest.fixture

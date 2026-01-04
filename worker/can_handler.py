@@ -55,7 +55,7 @@ class CANHandler:
                 logger.info(f'Disconnected from CAN interface {self.interface}')
             except subprocess.TimeoutExpired:
                 self.process.kill()
-                logger.warning(f'Force killed candump process')
+                logger.warning('Force killed candump process')
             except Exception as e:
                 logger.error(f'Error disconnecting from CAN interface: {e}')
             finally:

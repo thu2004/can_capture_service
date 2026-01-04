@@ -4,11 +4,10 @@ Tests for Rotation Manager
 Copyright (c) 2026 CTL Technology AB
 Licensed under the MIT License
 """
-import pytest
 import time
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import datetime
 from worker.rotation_manager import RotationManager
 
 

@@ -4,9 +4,7 @@ Tests for CAN Service
 Copyright (c) 2026 CTL Technology AB
 Licensed under the MIT License
 """
-import pytest
-from unittest.mock import Mock, patch, MagicMock
-from pathlib import Path
+from unittest.mock import Mock, patch
 from app.services.can_service import CANService
 from app.models.interface import CANInterface
 

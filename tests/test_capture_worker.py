@@ -4,13 +4,10 @@ Tests for Capture Worker
 Copyright (c) 2026 CTL Technology AB
 Licensed under the MIT License
 """
-import pytest
 import signal
 import subprocess
 import json
-from unittest.mock import Mock, patch, MagicMock, mock_open
-from pathlib import Path
-from datetime import datetime
+from unittest.mock import Mock, patch
 from worker.capture_worker import CaptureWorker
 
 
@@ -162,7 +159,7 @@ class TestCaptureWorker:
         with patch('time.sleep'):
             with patch.object(worker, 'stop'):
                 with patch.object(worker, '_update_metadata'):
-                    result = worker.start()
+                    worker.start()
         
         assert worker.is_running is False
         assert worker.should_stop is True
