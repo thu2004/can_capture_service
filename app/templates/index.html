@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - CAN Capture Service{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1>Dashboard</h1>
+        <p class="lead">CAN Capture Service - System Overview</p>
+        <button class="btn btn-sm btn-outline-secondary" onclick="refreshDashboard()">
+            <span class="spinner-border spinner-border-sm d-none" id="refreshSpinner" role="status"></span>
+            Refresh
+        </button>
+    </div>
+</div>
+
+{% if error %}
+<div class="row mt-3">
+    <div class="col-12">
+        <div class="alert alert-danger" role="alert">
+            <strong>Error:</strong> {{ error }}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- System Status Cards -->
+<div class="row mt-4">
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title">System Status</h5>
+                <h2 class="text-success">✓ Running</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title">Active Captures</h5>
+                <h2>{{ active_sessions|length }}</h2>
+                <p class="text-muted mb-0">{{ total_messages }} messages</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title">CAN Interfaces</h5>
+                <h2>{{ interfaces|length }}</h2>
+                <p class="text-muted mb-0">
+                    {% set up_count = interfaces|selectattr('status', 'equalto', 'up')|list|length %}
+                    {{ up_count }} UP, {{ interfaces|length - up_count }} DOWN
+                </p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title">Captured Files</h5>
+                <h2>{{ total_files }}</h2>
+                <p class="text-muted mb-0">{{ "%.2f"|format(total_file_size) }} MB</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Disk Usage -->
+{% if disk_usage %}
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Disk Usage</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <p><strong>Total:</strong> {{ "%.2f"|format(disk_usage.total_gb) }} GB</p>
+                        <p><strong>Used:</strong> {{ "%.2f"|format(disk_usage.used_gb) }} GB ({{ disk_usage.usage_percent }}%)</p>
+                        <p><strong>Free:</strong> {{ "%.2f"|format(disk_usage.free_gb) }} GB</p>
+                    </div>
+                    <div class="col-md-8">
+                        <div class="progress" style="height: 30px;">
+                            <div class="progress-bar {% if disk_usage.usage_percent > 90 %}bg-danger{% elif disk_usage.usage_percent > 75 %}bg-warning{% else %}bg-success{% endif %}" 
+                                 role="progressbar" 
+                                 style="width: {{ disk_usage.usage_percent }}%"
+                                 aria-valuenow="{{ disk_usage.usage_percent }}" 
+                                 aria-valuemin="0" 
+                                 aria-valuemax="100">
+                                {{ disk_usage.usage_percent }}%
+                            </div>
+                        </div>
+                        <small class="text-muted mt-2 d-block">Capture directory: {{ "%.2f"|format(disk_usage.capture_dir_size_gb) }} GB</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Active Captures -->
+{% if active_sessions %}
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Active Capture Sessions</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Interface</th>
+                                <th>File</th>
+                                <th>Messages</th>
+                                <th>Size</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for session in active_sessions %}
+                            <tr>
+                                <td>{{ session.interface }}</td>
+                                <td><code>{{ session.output_file }}</code></td>
+                                <td>{{ session.message_count }}</td>
+                                <td>{{ "%.2f"|format(session.current_size_mb) }} MB</td>
+                                <td>
+                                    <span class="badge {% if session.status == 'running' %}bg-success{% else %}bg-secondary{% endif %}">
+                                        {{ session.status|upper }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if session.status == 'running' %}
+                                    <a href="/capture" class="btn btn-sm btn-danger">Stop</a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Quick Actions -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <a href="/interfaces" class="btn btn-primary me-2">Manage Interfaces</a>
+                <a href="/capture" class="btn btn-success me-2">Start Capture</a>
+                <a href="/files" class="btn btn-info me-2">View Files</a>
+                <a href="/api-docs" class="btn btn-secondary">API Documentation</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function refreshDashboard() {
+    const spinner = document.getElementById('refreshSpinner');
+    spinner.classList.remove('d-none');
+    window.location.reload();
+}
+
+// Auto-refresh every 30 seconds
+setInterval(() => {
+    // Silently refresh data
+    fetch('/api/system/status')
+        .then(response => response.json())
+        .then(data => {
+            // Could update specific elements here if needed
+            console.log('System status updated');
+        })
+        .catch(error => console.error('Error refreshing status:', error));
+}, 30000);
+</script>
+{% endblock %}

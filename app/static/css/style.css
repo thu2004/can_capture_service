@@ -1,0 +1,773 @@
+/* Custom styles for CAN Capture Service - GitLab Light Design */
+
+:root {
+    --gitlab-orange: #FC6D26;
+    --gitlab-purple: #6B4CE6;
+    --gitlab-dark-purple: #2D1B4E;
+    --gitlab-blue: #4B9EEA;
+    --primary-gradient: linear-gradient(135deg, #6B4CE6 0%, #4B9EEA 100%);
+    --secondary-gradient: linear-gradient(135deg, #FC6D26 0%, #E24329 100%);
+    --success-gradient: linear-gradient(135deg, #4B9EEA 0%, #6B4CE6 100%);
+    --light-bg: #FFFFFF;
+    --light-surface: #F8F9FA;
+    --light-surface-elevated: #F1F3F5;
+    --text-primary: #1C1D1F;
+    --text-secondary: #6E6E6E;
+    --border-color: rgba(0, 0, 0, 0.08);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.08);
+    --shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.1);
+    --shadow-xl: 0 8px 16px rgba(0, 0, 0, 0.12);
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+}
+
+* {
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+body {
+    min-height: 100vh;
+    overflow-x: hidden;
+    background: #F8F9FA;
+    color: var(--text-primary);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+}
+
+.wrapper {
+    display: flex;
+    width: 100%;
+    min-height: 100vh;
+}
+
+/* Sidebar Styles - GitLab Light */
+.sidebar {
+    width: 260px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    z-index: 1000;
+    background: var(--light-bg);
+    color: var(--text-primary);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow-y: auto;
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.08);
+    border-right: 1px solid var(--border-color);
+}
+
+.sidebar-header {
+    padding: 20px;
+    background: var(--light-bg);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.sidebar-header button {
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: #fff;
+    padding: 5px 10px;
+    font-size: 1.2rem;
+    line-height: 1;
+}
+
+.sidebar-header button:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+.sidebar-header h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    letter-spacing: -0.3px;
+}
+
+.sidebar-header h3::before {
+    content: '⚡';
+    margin-right: 8px;
+    color: var(--gitlab-orange);
+}
+
+.sidebar .list-unstyled {
+    padding: 20px 0;
+    margin: 0;
+}
+
+.sidebar .list-unstyled li {
+    margin: 0;
+}
+
+.sidebar .nav-link {
+    padding: 12px 20px;
+    color: var(--text-secondary);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    transition: all 0.2s ease;
+    border-left: 3px solid transparent;
+    margin: 2px 0;
+    position: relative;
+}
+
+.sidebar .nav-link:hover {
+    background: rgba(107, 76, 230, 0.06);
+    color: var(--text-primary);
+    border-left-color: var(--gitlab-purple);
+}
+
+.sidebar .nav-link.active {
+    background: rgba(107, 76, 230, 0.1);
+    color: var(--gitlab-purple);
+    border-left-color: var(--gitlab-purple);
+    font-weight: 600;
+}
+
+.nav-icon {
+    font-size: 1.3rem;
+    margin-right: 14px;
+    width: 28px;
+    text-align: center;
+    position: relative;
+    z-index: 1;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+.nav-text {
+    font-size: 0.95rem;
+    font-weight: 500;
+    position: relative;
+    z-index: 1;
+    letter-spacing: 0.3px;
+}
+
+.sidebar-footer {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    padding: 15px 20px;
+    background: var(--light-surface);
+    border-top: 1px solid var(--border-color);
+    text-align: center;
+}
+
+/* Content Area */
+.content {
+    width: calc(100% - 260px);
+    margin-left: 260px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    background: transparent;
+}
+
+.mobile-menu-toggle {
+    position: fixed;
+    top: 15px;
+    left: 15px;
+    z-index: 998;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    border-radius: 5px;
+    padding: 8px 15px;
+}
+
+.mobile-menu-toggle span {
+    margin-right: 5px;
+    font-size: 1.1rem;
+}
+
+.content main {
+    flex: 1;
+}
+
+.footer {
+    margin-top: auto;
+    border-top: 1px solid var(--border-color);
+    background: var(--light-surface);
+    color: var(--text-secondary);
+}
+
+/* Card Styles - GitLab Light */
+.card {
+    margin-bottom: 1.5rem;
+    background: var(--light-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    transition: all 0.2s ease;
+    overflow: hidden;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+    border-color: rgba(107, 76, 230, 0.2);
+}
+
+.card-header {
+    background: var(--light-surface);
+    border-bottom: 1px solid var(--border-color);
+    padding: 1rem 1.5rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.card-body {
+    padding: 1.5rem;
+    color: var(--text-primary);
+    background: var(--light-bg);
+}
+
+.card-title {
+    color: var(--text-primary);
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    font-size: 1rem;
+}
+
+/* Button Styles - GitLab Inspired */
+.btn {
+    border-radius: var(--radius-sm);
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    transition: all 0.2s ease;
+    border: none;
+    font-size: 0.875rem;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+.btn-primary {
+    background: var(--gitlab-purple);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #5a3fd4;
+    color: white;
+}
+
+.btn-success {
+    background: var(--gitlab-blue);
+    color: white;
+}
+
+.btn-success:hover {
+    background: #3a8dd9;
+    color: white;
+}
+
+.btn-danger {
+    background: var(--gitlab-orange);
+    color: white;
+}
+
+.btn-danger:hover {
+    background: #E24329;
+    color: white;
+}
+
+.btn-outline-primary {
+    border: 1px solid var(--gitlab-purple);
+    color: var(--gitlab-purple);
+    background: transparent;
+}
+
+.btn-outline-primary:hover {
+    background: var(--gitlab-purple);
+    color: white;
+    border-color: var(--gitlab-purple);
+}
+
+.btn-outline-secondary {
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    background: transparent;
+}
+
+.btn-outline-secondary:hover {
+    background: var(--light-surface);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+
+/* Form Controls - GitLab Light */
+.form-control, .form-select {
+    background: var(--light-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    padding: 0.625rem 0.875rem;
+    transition: all 0.2s ease;
+    font-size: 0.875rem;
+}
+
+.form-control:focus, .form-select:focus {
+    background: var(--light-bg);
+    border-color: var(--gitlab-purple);
+    box-shadow: 0 0 0 3px rgba(107, 76, 230, 0.1);
+    color: var(--text-primary);
+    outline: none;
+}
+
+.form-control::placeholder {
+    color: var(--text-secondary);
+    opacity: 0.6;
+}
+
+.form-label {
+    color: var(--text-primary);
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
+}
+
+/* Badge Styles */
+.badge {
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--radius-sm);
+    font-weight: 500;
+    font-size: 0.75rem;
+    letter-spacing: 0.5px;
+}
+
+/* Alert Styles - GitLab Light */
+.alert {
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-color);
+    background: var(--light-bg);
+}
+
+.alert-danger {
+    background: rgba(226, 67, 41, 0.08);
+    border-color: rgba(226, 67, 41, 0.2);
+    color: #E24329;
+}
+
+.alert-success {
+    background: rgba(75, 158, 234, 0.08);
+    border-color: rgba(75, 158, 234, 0.2);
+    color: var(--gitlab-blue);
+}
+
+.alert-warning {
+    background: rgba(252, 109, 38, 0.08);
+    border-color: rgba(252, 109, 38, 0.2);
+    color: var(--gitlab-orange);
+}
+
+.alert-info {
+    background: rgba(107, 76, 230, 0.08);
+    border-color: rgba(107, 76, 230, 0.2);
+    color: var(--gitlab-purple);
+}
+
+/* Table Styles - GitLab Light */
+.table {
+    color: var(--text-primary);
+    background: var(--light-bg);
+}
+
+.table thead th {
+    border-bottom: 2px solid var(--border-color);
+    color: var(--text-primary);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 1px;
+    background: var(--light-surface);
+}
+
+.table tbody tr {
+    border-bottom: 1px solid var(--border-color);
+    transition: all 0.2s ease;
+    background: var(--light-bg);
+}
+
+.table tbody tr:hover {
+    background: rgba(107, 76, 230, 0.04);
+}
+
+/* Progress Bar */
+.progress {
+    background: var(--light-surface);
+    border-radius: var(--radius-sm);
+    height: 8px;
+    overflow: hidden;
+}
+
+.progress-bar {
+    background: var(--gitlab-purple);
+    border-radius: var(--radius-sm);
+    transition: width 0.6s ease;
+}
+
+.progress-bar.bg-success {
+    background: var(--gitlab-blue) !important;
+}
+
+.progress-bar.bg-warning {
+    background: var(--gitlab-orange) !important;
+}
+
+.progress-bar.bg-danger {
+    background: #E24329 !important;
+}
+
+/* Heading Styles */
+h1, h2, h3, h4, h5, h6 {
+    color: var(--text-primary);
+    font-weight: 600;
+    letter-spacing: -0.3px;
+}
+
+h1 {
+    color: var(--text-primary);
+    font-size: 2rem;
+    font-weight: 600;
+}
+
+h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.lead {
+    color: var(--text-secondary);
+    font-weight: 400;
+    font-size: 1rem;
+}
+
+/* Text Colors */
+.text-muted {
+    color: var(--text-secondary) !important;
+}
+
+.text-primary {
+    color: var(--text-primary) !important;
+}
+
+/* Badge Styles */
+.badge {
+    padding: 0.375rem 0.625rem;
+    border-radius: var(--radius-sm);
+    font-weight: 500;
+    font-size: 0.75rem;
+    letter-spacing: 0.3px;
+}
+
+.badge.bg-primary {
+    background: var(--gitlab-purple) !important;
+}
+
+.badge.bg-success {
+    background: var(--gitlab-blue) !important;
+}
+
+.badge.bg-info {
+    background: var(--gitlab-blue) !important;
+}
+
+.badge.bg-secondary {
+    background: var(--light-surface-elevated) !important;
+    color: var(--text-secondary) !important;
+}
+
+/* Responsive Design */
+@media (max-width: 991.98px) {
+    .sidebar {
+        margin-left: -260px;
+    }
+
+    .sidebar.active {
+        margin-left: 0;
+    }
+
+    .content {
+        width: 100%;
+        margin-left: 0;
+    }
+
+    .sidebar-header {
+        padding: 15px;
+    }
+
+    .sidebar-header h3 {
+        font-size: 1rem;
+    }
+}
+
+/* Overlay for mobile */
+@media (max-width: 991.98px) {
+    .sidebar-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 999;
+    }
+
+    .sidebar-overlay.active {
+        display: block;
+    }
+}
+
+/* Scrollbar styling for sidebar */
+.sidebar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+    background: var(--light-surface);
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover {
+    background: rgba(107, 76, 230, 0.5);
+}
+
+/* Modern Animations */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.card {
+    animation: fadeIn 0.5s ease-out;
+}
+
+/* Radio Button Styles - GitLab Light */
+.form-check-input {
+    width: 1.125rem;
+    height: 1.125rem;
+    border: 2px solid var(--border-color);
+    background: var(--light-bg);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.form-check-input:checked {
+    background: var(--gitlab-purple);
+    border-color: var(--gitlab-purple);
+    box-shadow: 0 0 0 3px rgba(107, 76, 230, 0.1);
+}
+
+.form-check-input:focus {
+    border-color: var(--gitlab-purple);
+    box-shadow: 0 0 0 3px rgba(107, 76, 230, 0.1);
+}
+
+.form-check-label {
+    color: var(--text-primary);
+    cursor: pointer;
+    margin-left: 0.5rem;
+}
+
+/* Button Group Styles */
+.btn-group .btn-check:checked + .btn {
+    background: var(--gitlab-purple);
+    border-color: var(--gitlab-purple);
+    color: white;
+    box-shadow: var(--shadow-md);
+}
+
+.btn-group .btn-outline-primary {
+    border-color: var(--border-color);
+    color: var(--text-secondary);
+}
+
+.btn-group .btn-outline-primary:hover {
+    background: rgba(107, 76, 230, 0.1);
+    border-color: var(--gitlab-purple);
+    color: var(--gitlab-purple);
+}
+
+/* Code/Pre Styles - GitLab Light */
+code {
+    background: var(--light-surface);
+    padding: 0.2rem 0.4rem;
+    border-radius: var(--radius-sm);
+    color: var(--gitlab-orange);
+    font-size: 0.875em;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+}
+
+pre {
+    background: var(--light-surface);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 1rem;
+    color: var(--text-primary);
+    overflow-x: auto;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+    font-size: 0.875rem;
+    line-height: 1.6;
+}
+
+/* List Group Styles - GitLab Light */
+.list-group-item {
+    background: var(--light-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    transition: all 0.2s ease;
+}
+
+.list-group-item:hover {
+    background: rgba(107, 76, 230, 0.06);
+    border-color: rgba(107, 76, 230, 0.2);
+}
+
+.list-group-item.active {
+    background: var(--gitlab-purple);
+    border-color: var(--gitlab-purple);
+    color: white;
+}
+
+/* Input Group Styles */
+.input-group-text {
+    background: rgba(30, 41, 59, 0.6);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    border-radius: var(--radius-md);
+}
+
+/* Spinner Styles */
+.spinner-border {
+    border-color: currentColor;
+    border-right-color: transparent;
+}
+
+/* Toast/Notification Styles */
+.toast {
+    background: rgba(30, 41, 59, 0.95);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-xl);
+}
+
+/* Nav Tabs */
+.nav-tabs {
+    border-bottom: 1px solid var(--border-color);
+}
+
+.nav-tabs .nav-link {
+    color: var(--text-secondary);
+    border: none;
+    border-bottom: 2px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.nav-tabs .nav-link:hover {
+    color: var(--text-primary);
+    border-bottom-color: rgba(102, 126, 234, 0.5);
+}
+
+.nav-tabs .nav-link.active {
+    color: var(--text-primary);
+    background: transparent;
+    border-bottom-color: #667eea;
+}
+
+/* Dropdown Styles - GitLab Light */
+.dropdown-menu {
+    background: var(--light-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    padding: 0.5rem;
+}
+
+.dropdown-item {
+    color: var(--text-primary);
+    border-radius: var(--radius-sm);
+    padding: 0.5rem 1rem;
+    transition: all 0.2s ease;
+}
+
+.dropdown-item:hover {
+    background: rgba(107, 76, 230, 0.08);
+    color: var(--text-primary);
+}
+
+/* Modal Styles - GitLab Light */
+.modal-content {
+    background: var(--light-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    color: var(--text-primary);
+    box-shadow: var(--shadow-xl);
+}
+
+.modal-header {
+    border-bottom: 1px solid var(--border-color);
+    background: var(--light-surface);
+}
+
+.modal-footer {
+    border-top: 1px solid var(--border-color);
+    background: var(--light-surface);
+}
+
+/* Pagination */
+.pagination .page-link {
+    background: rgba(30, 41, 59, 0.6);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    border-radius: var(--radius-sm);
+    margin: 0 2px;
+}
+
+.pagination .page-link:hover {
+    background: rgba(102, 126, 234, 0.2);
+    border-color: #667eea;
+    color: var(--text-primary);
+}
+
+.pagination .page-item.active .page-link {
+    background: var(--primary-gradient);
+    border-color: transparent;
+    color: white;
+}
+
+/* Smooth Scroll */
+html {
+    scroll-behavior: smooth;
+}
+
+/* Selection Color */
+::selection {
+    background: rgba(102, 126, 234, 0.3);
+    color: var(--text-primary);
+}
+
+/* Focus Visible */
+*:focus-visible {
+    outline: 2px solid #667eea;
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+}
+

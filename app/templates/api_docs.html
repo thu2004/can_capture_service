@@ -1,0 +1,415 @@
+{% extends "base.html" %}
+
+{% block title %}API Documentation - CAN Capture Service{% endblock %}
+
+{% block extra_head %}
+<style>
+.api-docs-nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: #fff;
+    border-bottom: 2px solid #dee2e6;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin: -1.5rem -1rem 2rem -1rem;
+    padding: 0.75rem 1rem;
+    backdrop-filter: blur(10px);
+    background-color: rgba(255, 255, 255, 0.95);
+}
+
+.api-docs-nav .nav-link {
+    color: #495057;
+    padding: 0.5rem 1rem;
+    margin: 0 0.25rem;
+    border-radius: 0.25rem;
+    transition: all 0.2s;
+    font-weight: 500;
+}
+
+.api-docs-nav .nav-link:hover {
+    background-color: #e9ecef;
+    color: #0d6efd;
+}
+
+.api-docs-nav .nav-link.active {
+    background-color: #0d6efd;
+    color: #fff;
+}
+
+.api-docs-section {
+    scroll-margin-top: 100px;
+}
+
+.api-docs-endpoint {
+    scroll-margin-top: 120px;
+}
+
+@media (max-width: 991.98px) {
+    .api-docs-nav {
+        margin: -1.5rem -0.5rem 2rem -0.5rem;
+        padding: 0.5rem;
+    }
+    
+    .api-docs-nav .nav-link {
+        padding: 0.4rem 0.6rem;
+        font-size: 0.9rem;
+        margin: 0.2rem;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1>API Documentation</h1>
+        <p class="lead">REST API Reference</p>
+    </div>
+</div>
+
+<!-- Sticky Top Navigation -->
+<div class="api-docs-nav">
+    <ul class="nav nav-pills justify-content-center flex-wrap">
+        <li class="nav-item">
+            <a class="nav-link" href="#interfaces">📡 Interfaces</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="#capture">🎬 Capture</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="#files">📁 Files</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="#system">⚙️ System</a>
+        </li>
+    </ul>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        {% if endpoints %}
+        
+        <!-- Interfaces Section -->
+        <div id="interfaces" class="mb-5 api-docs-section">
+            <h2>CAN Interface Management</h2>
+            {% for key, endpoint in endpoints.interfaces.items() %}
+            <div id="interfaces-{{ key }}" class="card mb-3 api-docs-endpoint">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <span class="badge bg-primary me-2">{{ endpoint.method }}</span>
+                        <code>{{ endpoint.path }}</code>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p>{{ endpoint.description }}</p>
+                    
+                    {% if endpoint.request_schema %}
+                    <h6>Request</h6>
+                    {% if endpoint.request_schema.path_params %}
+                    <p><strong>Path Parameters:</strong></p>
+                    <ul>
+                        {% for param, desc in endpoint.request_schema.path_params.items() %}
+                        <li><code>{{ param }}</code>: {{ desc }}</li>
+                        {% endfor %}
+                    </ul>
+                    {% endif %}
+                    {% if endpoint.request_schema.body %}
+                    <p><strong>Request Body:</strong></p>
+                    <pre class="bg-light p-3"><code>{{ endpoint.request_schema.body|tojson(indent=2) }}</code></pre>
+                    {% endif %}
+                    {% if endpoint.request_schema.query_params %}
+                    <p><strong>Query Parameters:</strong></p>
+                    <ul>
+                        {% for param, desc in endpoint.request_schema.query_params.items() %}
+                        <li><code>{{ param }}</code>: {{ desc }}</li>
+                        {% endfor %}
+                    </ul>
+                    {% endif %}
+                    {% endif %}
+                    
+                    <h6>Response</h6>
+                    {% for status, schema in endpoint.response_schemas.items() %}
+                    <p><strong>{{ status }}:</strong></p>
+                    <pre class="bg-light p-3"><code>{{ schema|tojson(indent=2) }}</code></pre>
+                    {% endfor %}
+                    
+                    <h6>Examples</h6>
+                    <ul class="nav nav-tabs" role="tablist">
+                        <li class="nav-item">
+                            <a class="nav-link active" data-bs-toggle="tab" href="#{{ key }}-curl">cURL</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-bs-toggle="tab" href="#{{ key }}-python">Python</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-bs-toggle="tab" href="#{{ key }}-javascript">JavaScript</a>
+                        </li>
+                    </ul>
+                    <div class="tab-content">
+                        <div class="tab-pane fade show active" id="{{ key }}-curl">
+                            <pre class="bg-dark text-light p-3"><code>{{ endpoint.examples.curl }}</code></pre>
+                        </div>
+                        <div class="tab-pane fade" id="{{ key }}-python">
+                            <pre class="bg-dark text-light p-3"><code>{{ endpoint.examples.python }}</code></pre>
+                        </div>
+                        <div class="tab-pane fade" id="{{ key }}-javascript">
+                            <pre class="bg-dark text-light p-3"><code>{{ endpoint.examples.javascript }}</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <!-- Capture Section -->
+        <div id="capture" class="mb-5 api-docs-section">
+            <h2>Capture Control</h2>
+            {% for key, endpoint in endpoints.capture.items() %}
+            <div id="capture-{{ key }}" class="card mb-3 api-docs-endpoint">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <span class="badge bg-success me-2">{{ endpoint.method }}</span>
+                        <code>{{ endpoint.path }}</code>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p>{{ endpoint.description }}</p>
+                    
+                    {% if endpoint.request_schema %}
+                    <h6>Request</h6>
+                    {% if endpoint.request_schema.body %}
+                    <p><strong>Request Body:</strong></p>
+                    <pre class="bg-light p-3"><code>{{ endpoint.request_schema.body|tojson(indent=2) }}</code></pre>
+                    {% endif %}
+                    {% endif %}
+                    
+                    <h6>Response</h6>
+                    {% for status, schema in endpoint.response_schemas.items() %}
+                    <p><strong>{{ status }}:</strong></p>
+                    <pre class="bg-light p-3"><code>{{ schema|tojson(indent=2) }}</code></pre>
+                    {% endfor %}
+                    
+                    <h6>Examples</h6>
+                    <ul class="nav nav-tabs" role="tablist">
+                        <li class="nav-item">
+                            <a class="nav-link active" data-bs-toggle="tab" href="#capture-{{ key }}-curl">cURL</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-bs-toggle="tab" href="#capture-{{ key }}-python">Python</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-bs-toggle="tab" href="#capture-{{ key }}-javascript">JavaScript</a>
+                        </li>
+                    </ul>
+                    <div class="tab-content">
+                        <div class="tab-pane fade show active" id="capture-{{ key }}-curl">
+                            <pre class="bg-dark text-light p-3"><code>{{ endpoint.examples.curl }}</code></pre>
+                        </div>
+                        <div class="tab-pane fade" id="capture-{{ key }}-python">
+                            <pre class="bg-dark text-light p-3"><code>{{ endpoint.examples.python }}</code></pre>
+                        </div>
+                        <div class="tab-pane fade" id="capture-{{ key }}-javascript">
+                            <pre class="bg-dark text-light p-3"><code>{{ endpoint.examples.javascript }}</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <!-- Files Section -->
+        <div id="files" class="mb-5 api-docs-section">
+            <h2>File Management</h2>
+            {% for key, endpoint in endpoints.files.items() %}
+            <div id="files-{{ key }}" class="card mb-3 api-docs-endpoint">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <span class="badge bg-info me-2">{{ endpoint.method }}</span>
+                        <code>{{ endpoint.path }}</code>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p>{{ endpoint.description }}</p>
+                    
+                    {% if endpoint.request_schema %}
+                    <h6>Request</h6>
+                    {% if endpoint.request_schema.query_params %}
+                    <p><strong>Query Parameters:</strong></p>
+                    <ul>
+                        {% for param, desc in endpoint.request_schema.query_params.items() %}
+                        <li><code>{{ param }}</code>: {{ desc }}</li>
+                        {% endfor %}
+                    </ul>
+                    {% endif %}
+                    {% endif %}
+                    
+                    <h6>Response</h6>
+                    {% for status, schema in endpoint.response_schemas.items() %}
+                    <p><strong>{{ status }}:</strong></p>
+                    <pre class="bg-light p-3"><code>{{ schema|tojson(indent=2) }}</code></pre>
+                    {% endfor %}
+                    
+                    <h6>Examples</h6>
+                    <ul class="nav nav-tabs" role="tablist">
+                        <li class="nav-item">
+                            <a class="nav-link active" data-bs-toggle="tab" href="#files-{{ key }}-curl">cURL</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-bs-toggle="tab" href="#files-{{ key }}-python">Python</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-bs-toggle="tab" href="#files-{{ key }}-javascript">JavaScript</a>
+                        </li>
+                    </ul>
+                    <div class="tab-content">
+                        <div class="tab-pane fade show active" id="files-{{ key }}-curl">
+                            <pre class="bg-dark text-light p-3"><code>{{ endpoint.examples.curl }}</code></pre>
+                        </div>
+                        <div class="tab-pane fade" id="files-{{ key }}-python">
+                            <pre class="bg-dark text-light p-3"><code>{{ endpoint.examples.python }}</code></pre>
+                        </div>
+                        <div class="tab-pane fade" id="files-{{ key }}-javascript">
+                            <pre class="bg-dark text-light p-3"><code>{{ endpoint.examples.javascript }}</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <!-- System Section -->
+        <div id="system" class="mb-5 api-docs-section">
+            <h2>System Status</h2>
+            {% for key, endpoint in endpoints.system.items() %}
+            <div id="system-{{ key }}" class="card mb-3 api-docs-endpoint">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <span class="badge bg-secondary me-2">{{ endpoint.method }}</span>
+                        <code>{{ endpoint.path }}</code>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p>{{ endpoint.description }}</p>
+                    
+                    <h6>Response</h6>
+                    {% for status, schema in endpoint.response_schemas.items() %}
+                    <p><strong>{{ status }}:</strong></p>
+                    <pre class="bg-light p-3"><code>{{ schema|tojson(indent=2) }}</code></pre>
+                    {% endfor %}
+                    
+                    <h6>Examples</h6>
+                    <ul class="nav nav-tabs" role="tablist">
+                        <li class="nav-item">
+                            <a class="nav-link active" data-bs-toggle="tab" href="#system-{{ key }}-curl">cURL</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-bs-toggle="tab" href="#system-{{ key }}-python">Python</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-bs-toggle="tab" href="#system-{{ key }}-javascript">JavaScript</a>
+                        </li>
+                    </ul>
+                    <div class="tab-content">
+                        <div class="tab-pane fade show active" id="system-{{ key }}-curl">
+                            <pre class="bg-dark text-light p-3"><code>{{ endpoint.examples.curl }}</code></pre>
+                        </div>
+                        <div class="tab-pane fade" id="system-{{ key }}-python">
+                            <pre class="bg-dark text-light p-3"><code>{{ endpoint.examples.python }}</code></pre>
+                        </div>
+                        <div class="tab-pane fade" id="system-{{ key }}-javascript">
+                            <pre class="bg-dark text-light p-3"><code>{{ endpoint.examples.javascript }}</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        {% else %}
+        <div class="alert alert-info">
+            <p>API documentation metadata not available.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Smooth scrolling for anchor links
+document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+    anchor.addEventListener('click', function (e) {
+        e.preventDefault();
+        const href = this.getAttribute('href');
+        const target = document.querySelector(href);
+        if (target) {
+            const offset = 100; // Account for sticky nav
+            const targetPosition = target.getBoundingClientRect().top + window.pageYOffset - offset;
+            window.scrollTo({
+                top: targetPosition,
+                behavior: 'smooth'
+            });
+            
+            // Update active nav links
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+            });
+            this.classList.add('active');
+            
+            // Update URL hash without triggering scroll
+            if (history.pushState) {
+                history.pushState(null, null, href);
+            }
+        }
+    });
+});
+
+// Highlight active navigation item on scroll
+let sections = document.querySelectorAll('.api-docs-section');
+let navLinks = document.querySelectorAll('.api-docs-nav .nav-link');
+
+function updateActiveNav() {
+    let current = '';
+    const scrollOffset = 120;
+    
+    sections.forEach(section => {
+        const sectionTop = section.getBoundingClientRect().top;
+        if (sectionTop <= scrollOffset) {
+            current = section.getAttribute('id');
+        }
+    });
+    
+    // Update top nav
+    navLinks.forEach(link => {
+        link.classList.remove('active');
+        if (link.getAttribute('href') === '#' + current) {
+            link.classList.add('active');
+        }
+    });
+}
+
+// Update on scroll
+window.addEventListener('scroll', updateActiveNav);
+
+// Update on page load
+document.addEventListener('DOMContentLoaded', function() {
+    updateActiveNav();
+    
+    // Highlight based on hash if present
+    if (window.location.hash) {
+        const hash = window.location.hash.substring(1);
+        const target = document.getElementById(hash);
+        if (target) {
+            setTimeout(() => {
+                const offset = 80;
+                const targetPosition = target.getBoundingClientRect().top + window.pageYOffset - offset;
+                window.scrollTo({
+                    top: targetPosition,
+                    behavior: 'smooth'
+                });
+            }, 100);
+        }
+    }
+});
+</script>
+{% endblock %}

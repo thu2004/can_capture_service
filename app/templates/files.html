@@ -1,0 +1,294 @@
+{% extends "base.html" %}
+
+{% block title %}Files - CAN Capture Service{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1>Captured Files</h1>
+        <p class="lead">View and manage captured CAN files</p>
+        <button class="btn btn-primary mb-3" onclick="refreshFiles()">
+            <span class="spinner-border spinner-border-sm d-none" id="refreshSpinner" role="status"></span>
+            Refresh
+        </button>
+    </div>
+</div>
+
+{% if error %}
+<div class="row mt-3">
+    <div class="col-12">
+        <div class="alert alert-danger" role="alert">
+            <strong>Error:</strong> {{ error }}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Disk Usage Info -->
+{% if disk_usage %}
+<div class="row mt-3">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="card-title">Disk Usage</h6>
+                <p class="mb-1"><strong>Total:</strong> {{ "%.2f"|format(disk_usage.total_gb) }} GB</p>
+                <p class="mb-1"><strong>Used:</strong> {{ "%.2f"|format(disk_usage.used_gb) }} GB ({{ disk_usage.usage_percent }}%)</p>
+                <p class="mb-0"><strong>Free:</strong> {{ "%.2f"|format(disk_usage.free_gb) }} GB</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="card-title">Capture Directory</h6>
+                <p class="mb-0"><strong>Size:</strong> {{ "%.2f"|format(disk_usage.capture_dir_size_gb) }} GB</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="card-title">Total Files</h6>
+                <p class="mb-0"><strong>Count:</strong> {{ total_files }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Files Table -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Captured Files</h5>
+            </div>
+            <div class="card-body">
+                {% if files %}
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>Filename</th>
+                                <th>Interface</th>
+                                <th>Size</th>
+                                <th>Messages</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for file in files %}
+                            <tr id="file-row-{{ file.filename }}">
+                                <td>
+                                    <code>{{ file.filename }}</code>
+                                    {% if file.session_id %}
+                                    <br><small class="text-muted">Session: {{ file.session_id[:8] }}...</small>
+                                    {% endif %}
+                                </td>
+                                <td>{{ file.interface or 'Unknown' }}</td>
+                                <td>{{ "%.2f"|format(file.size_mb) }} MB</td>
+                                <td>{{ file.message_count or 0 }}</td>
+                                <td>
+                                    <small>{{ file.created[:19]|replace('T', ' ') }}</small>
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <a href="/api/files/{{ file.filename }}/download" class="btn btn-sm btn-primary" title="Download">
+                                            Download
+                                        </a>
+                                        <button class="btn btn-sm btn-success" onclick="showLiveView('{{ file.filename }}')" title="Live View">
+                                            Live View
+                                        </button>
+                                        <button class="btn btn-sm btn-danger" onclick="deleteFile('{{ file.filename }}')" title="Delete">
+                                            Delete
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted">No captured files found</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Live View Modal -->
+<div class="modal fade" id="liveViewModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Live View: <span id="liveViewFilename"></span></h5>
+                <div class="d-flex align-items-center gap-2">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="autoRefreshToggle" checked>
+                        <label class="form-check-label" for="autoRefreshToggle">Auto-refresh</label>
+                    </div>
+                    <div class="input-group" style="width: 150px;">
+                        <input type="number" class="form-control form-control-sm" id="linesInput" value="100" min="10" max="1000" step="10">
+                        <span class="input-group-text">lines</span>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-primary" onclick="refreshLiveView()">Refresh</button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+            </div>
+            <div class="modal-body p-0">
+                <div id="liveViewContent" style="background: #1C1D1F; color: #FFFFFF; font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace; font-size: 0.875rem; padding: 1rem; max-height: 70vh; overflow-y: auto; white-space: pre-wrap; word-wrap: break-word; line-height: 1.6;">
+                    Loading...
+                </div>
+            </div>
+            <div class="modal-footer">
+                <div class="me-auto">
+                    <small class="text-muted" id="liveViewStats"></small>
+                </div>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function refreshFiles() {
+    const spinner = document.getElementById('refreshSpinner');
+    spinner.classList.remove('d-none');
+    window.location.reload();
+}
+
+let liveViewInterval = null;
+let currentLiveViewFilename = null;
+
+function showLiveView(filename) {
+    currentLiveViewFilename = filename;
+    document.getElementById('liveViewFilename').textContent = filename;
+    
+    const modal = new bootstrap.Modal(document.getElementById('liveViewModal'));
+    modal.show();
+    
+    // Load initial content
+    refreshLiveView();
+    
+    // Set up auto-refresh
+    const autoRefreshToggle = document.getElementById('autoRefreshToggle');
+    autoRefreshToggle.addEventListener('change', function() {
+        if (this.checked) {
+            startAutoRefresh();
+        } else {
+            stopAutoRefresh();
+        }
+    });
+    
+    // Start auto-refresh if enabled
+    if (autoRefreshToggle.checked) {
+        startAutoRefresh();
+    }
+    
+    // Stop auto-refresh when modal is closed
+    document.getElementById('liveViewModal').addEventListener('hidden.bs.modal', function() {
+        stopAutoRefresh();
+        currentLiveViewFilename = null;
+    });
+}
+
+function refreshLiveView() {
+    if (!currentLiveViewFilename) return;
+    
+    const lines = parseInt(document.getElementById('linesInput').value) || 100;
+    const contentDiv = document.getElementById('liveViewContent');
+    const statsDiv = document.getElementById('liveViewStats');
+    
+    fetch(`/api/files/${currentLiveViewFilename}/view?lines=${lines}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                contentDiv.textContent = `Error: ${data.error}`;
+                statsDiv.textContent = '';
+                return;
+            }
+            
+            // Update content
+            contentDiv.textContent = data.content;
+            
+            // Auto-scroll to bottom
+            contentDiv.scrollTop = contentDiv.scrollHeight;
+            
+            // Update stats
+            statsDiv.textContent = `Total lines: ${data.total_lines} | Showing: ${data.returned_lines} | Size: ${data.file_size_mb.toFixed(2)} MB | Updated: ${new Date().toLocaleTimeString()}`;
+        })
+        .catch(error => {
+            console.error('Error fetching file content:', error);
+            contentDiv.textContent = `Error: ${error.message}`;
+            statsDiv.textContent = '';
+        });
+}
+
+function startAutoRefresh() {
+    stopAutoRefresh(); // Clear any existing interval
+    liveViewInterval = setInterval(refreshLiveView, 2000); // Refresh every 2 seconds
+}
+
+function stopAutoRefresh() {
+    if (liveViewInterval) {
+        clearInterval(liveViewInterval);
+        liveViewInterval = null;
+    }
+}
+
+function deleteFile(filename) {
+    fetch(`/api/files/${filename}`, {
+        method: 'DELETE'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Remove row from table
+            const row = document.getElementById(`file-row-${filename}`);
+            if (row) {
+                row.remove();
+            }
+            showToast('success', `File ${filename} deleted successfully`);
+        } else {
+            showToast('error', data.error || data.message || 'Failed to delete file');
+        }
+    })
+    .catch(error => {
+        console.error('Error deleting file:', error);
+        showToast('error', `Error: ${error.message}`);
+    });
+}
+
+function showToast(type, message) {
+    const toastContainer = document.getElementById('toast-container') || createToastContainer();
+    const toast = document.createElement('div');
+    toast.className = `toast align-items-center text-white bg-${type === 'success' ? 'success' : 'danger'} border-0`;
+    toast.setAttribute('role', 'alert');
+    toast.setAttribute('aria-live', 'assertive');
+    toast.setAttribute('aria-atomic', 'true');
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">${message}</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    `;
+    toastContainer.appendChild(toast);
+    const bsToast = new bootstrap.Toast(toast);
+    bsToast.show();
+    toast.addEventListener('hidden.bs.toast', () => toast.remove());
+}
+
+function createToastContainer() {
+    const container = document.createElement('div');
+    container.id = 'toast-container';
+    container.className = 'toast-container position-fixed top-0 end-0 p-3';
+    container.style.zIndex = '9999';
+    document.body.appendChild(container);
+    return container;
+}
+</script>
+{% endblock %}

@@ -1,0 +1,370 @@
+{% extends "base.html" %}
+
+{% block title %}Capture Control - CAN Capture Service{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1>Capture Control</h1>
+        <p class="lead">Start and manage CAN capture sessions</p>
+    </div>
+</div>
+
+{% if error %}
+<div class="row mt-3">
+    <div class="col-12">
+        <div class="alert alert-danger" role="alert">
+            <strong>Error:</strong> {{ error }}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Start Capture Form -->
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Start New Capture</h5>
+            </div>
+            <div class="card-body">
+                <form id="startCaptureForm">
+                    <div class="mb-3">
+                        <label class="form-label">CAN Interface <span class="text-danger">*</span></label>
+                        <div class="row g-2" id="interfaceRadioGroup" required>
+                            {% for iface in interfaces %}
+                            <div class="col-md-6 col-lg-4">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="interface" id="interface_{{ iface.name }}" 
+                                           value="{{ iface.name }}" {% if iface.status == 'down' %}disabled{% elif loop.first %}checked{% endif %} required>
+                                    <label class="form-check-label" for="interface_{{ iface.name }}">
+                                        <strong>{{ iface.name }}</strong>
+                                        <span class="badge {% if iface.status == 'up' %}bg-success{% else %}bg-secondary{% endif %} ms-2">
+                                            {% if iface.status == 'up' %}UP{% else %}DOWN{% endif %}
+                                        </span>
+                                    </label>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <small class="form-text text-muted">Interface must be UP to start capture</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="bitrate" class="form-label">Bitrate (bps)</label>
+                        <input type="number" class="form-control" id="bitrate" name="bitrate" 
+                               value="{{ default_bitrate }}" min="10000" max="1000000" step="1000">
+                        <small class="form-text text-muted">Default: {{ default_bitrate }} bps</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="output_file" class="form-label">Output Filename (optional)</label>
+                        <input type="text" class="form-control" id="output_file" name="output_file" 
+                               placeholder="Auto-generated if not provided">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="space_limit_mb" class="form-label">Space Limit (MB)</label>
+                        <input type="number" class="form-control" id="space_limit_mb" name="space_limit_mb" 
+                               value="100" min="1" max="10000" step="1">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Rotation Strategy</label>
+                        <select class="form-select" id="rotation_strategy" name="rotation_strategy">
+                            <option value="size" selected>Size-based</option>
+                            <option value="time">Time-based</option>
+                            <option value="count">Count-based</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="max_file_size_mb" class="form-label">Max File Size (MB)</label>
+                        <input type="number" class="form-control" id="max_file_size_mb" name="max_file_size_mb" 
+                               value="{{ default_rotation.max_file_size_mb }}" min="1" max="1000" step="1">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="rotation_action" class="form-label">Rotation Action</label>
+                        <select class="form-select" id="rotation_action" name="rotation_action">
+                            <option value="rotate" selected>Rotate (create new file)</option>
+                            <option value="stop">Stop when limit reached</option>
+                            <option value="delete_oldest">Delete oldest file</option>
+                        </select>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary" id="startCaptureBtn">
+                        <span class="spinner-border spinner-border-sm d-none" id="startSpinner" role="status"></span>
+                        Start Capture
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Active Captures -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Active Captures</h5>
+                <div>
+                    <button class="btn btn-sm btn-outline-warning me-2" onclick="cleanupInactiveSessions()" title="Remove old stopped/error sessions">
+                        Cleanup
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="refreshCaptures()">
+                        <span class="spinner-border spinner-border-sm d-none" id="refreshSpinner" role="status"></span>
+                        Refresh
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="activeCapturesList">
+                    {% if active_sessions %}
+                        {% for session in active_sessions %}
+                        <div class="card mb-2" id="session-{{ session.session_id }}">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 class="card-title">{{ session.interface }}</h6>
+                                        <p class="card-text small mb-1">
+                                            <strong>Session:</strong> <code>{{ session.session_id[:8] }}...</code><br>
+                                            <strong>File:</strong> {{ session.output_file }}<br>
+                                            <strong>Messages:</strong> {{ session.message_count }}<br>
+                                            <strong>Size:</strong> {{ "%.2f"|format(session.current_size_mb) }} MB / {{ session.space_limit_mb }} MB<br>
+                                            <strong>Status:</strong> 
+                                            <span class="badge {% if session.status == 'running' %}bg-success{% elif session.status == 'error' %}bg-danger{% else %}bg-secondary{% endif %}">
+                                                {{ session.status|upper }}
+                                            </span>
+                                        {% if session.error_message %}
+                                        <br><small class="text-danger">{{ session.error_message[:100] }}</small>
+                                        {% endif %}
+                                        </p>
+                                    </div>
+                                    {% if session.status == 'running' %}
+                                    <button class="btn btn-sm btn-danger" onclick="stopCapture('{{ session.session_id }}')">
+                                        Stop
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted">No active captures</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function showToast(type, message) {
+    const toastContainer = document.getElementById('toast-container') || createToastContainer();
+    const toast = document.createElement('div');
+    toast.className = `toast align-items-center text-white bg-${type === 'success' ? 'success' : 'danger'} border-0`;
+    toast.setAttribute('role', 'alert');
+    toast.setAttribute('aria-live', 'assertive');
+    toast.setAttribute('aria-atomic', 'true');
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">${message}</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    `;
+    toastContainer.appendChild(toast);
+    const bsToast = new bootstrap.Toast(toast);
+    bsToast.show();
+    toast.addEventListener('hidden.bs.toast', () => toast.remove());
+}
+
+function createToastContainer() {
+    const container = document.createElement('div');
+    container.id = 'toast-container';
+    container.className = 'toast-container position-fixed top-0 end-0 p-3';
+    container.style.zIndex = '9999';
+    document.body.appendChild(container);
+    return container;
+}
+
+// Select first available (UP) interface on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const interfaceRadios = document.querySelectorAll('input[name="interface"]:not([disabled])');
+    if (interfaceRadios.length > 0 && !document.querySelector('input[name="interface"]:checked')) {
+        interfaceRadios[0].checked = true;
+    }
+});
+
+document.getElementById('startCaptureForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const startBtn = document.getElementById('startCaptureBtn');
+    const spinner = document.getElementById('startSpinner');
+    startBtn.disabled = true;
+    spinner.classList.remove('d-none');
+    
+    const interfaceRadio = document.querySelector('input[name="interface"]:checked');
+    if (!interfaceRadio) {
+        showToast('error', 'Please select a CAN interface');
+        startBtn.disabled = false;
+        spinner.classList.add('d-none');
+        return;
+    }
+    
+    const formData = {
+        interface: interfaceRadio.value,
+        bitrate: parseInt(document.getElementById('bitrate').value),
+        output_file: document.getElementById('output_file').value || null,
+        space_limit_mb: parseFloat(document.getElementById('space_limit_mb').value),
+        rotation: {
+            strategy: document.getElementById('rotation_strategy').value,
+            max_file_size_mb: parseFloat(document.getElementById('max_file_size_mb').value),
+            rotation_action: document.getElementById('rotation_action').value
+        }
+    };
+    
+    // Remove null values
+    Object.keys(formData).forEach(key => {
+        if (formData[key] === null || formData[key] === '') {
+            delete formData[key];
+        }
+    });
+    
+    try {
+        const response = await fetch('/api/capture/start', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(formData)
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast('success', `Capture started successfully! Session: ${data.session_id.substring(0, 8)}...`);
+            // Reset form
+            document.getElementById('startCaptureForm').reset();
+            // Refresh captures list
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            showToast('error', data.error || data.message || 'Failed to start capture');
+        }
+    } catch (error) {
+        showToast('error', `Error: ${error.message}`);
+    } finally {
+        startBtn.disabled = false;
+        spinner.classList.add('d-none');
+    }
+});
+
+async function stopCapture(sessionId) {
+    try {
+        const response = await fetch('/api/capture/stop', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ session_id: sessionId })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast('success', 'Capture stopped successfully');
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            showToast('error', data.error || data.message || 'Failed to stop capture');
+        }
+    } catch (error) {
+        showToast('error', `Error: ${error.message}`);
+    }
+}
+
+function refreshCaptures() {
+    const spinner = document.getElementById('refreshSpinner');
+    spinner.classList.remove('d-none');
+    window.location.reload();
+}
+
+function cleanupInactiveSessions() {
+    fetch('/api/capture/cleanup', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ 
+            older_than_hours: 24,
+            remove_all_errors: true 
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('success', data.message || `Cleaned up ${data.removed_count} session(s)`);
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            showToast('error', data.error || data.message || 'Failed to cleanup sessions');
+        }
+    })
+    .catch(error => {
+        console.error('Error cleaning up sessions:', error);
+        showToast('error', `Error: ${error.message}`);
+    });
+}
+
+// Auto-refresh active captures every 10 seconds
+setInterval(() => {
+    fetch('/api/capture/status')
+        .then(response => response.json())
+        .then(data => {
+            const container = document.getElementById('activeCapturesList');
+            if (container && data.sessions) {
+                // Update the active captures list
+                if (data.sessions.length === 0) {
+                    container.innerHTML = '<p class="text-muted">No active captures</p>';
+                } else {
+                    let html = '';
+                    data.sessions.forEach(session => {
+                        const statusBadge = session.status === 'running' ? 'bg-success' : 'bg-secondary';
+                        html += `
+                            <div class="card mb-2" id="session-${session.session_id}">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <h6 class="card-title">${session.interface}</h6>
+                                            <p class="card-text small mb-1">
+                                                <strong>Session:</strong> <code>${session.session_id.substring(0, 8)}...</code><br>
+                                                <strong>File:</strong> ${session.output_file}<br>
+                                                <strong>Messages:</strong> ${session.message_count}<br>
+                                                <strong>Size:</strong> ${session.current_size_mb.toFixed(2)} MB / ${session.space_limit_mb} MB<br>
+                                                <strong>Status:</strong> 
+                                                <span class="badge ${statusBadge}">${session.status.toUpperCase()}</span>
+                                            </p>
+                                        </div>
+                                        ${session.status === 'running' ? `
+                                        <button class="btn btn-sm btn-danger" onclick="stopCapture('${session.session_id}')">
+                                            Stop
+                                        </button>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    container.innerHTML = html;
+                }
+            }
+        })
+        .catch(error => console.error('Error refreshing captures:', error));
+}, 10000);
+</script>
+{% endblock %}

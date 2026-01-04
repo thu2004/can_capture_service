@@ -1,0 +1,23 @@
+[run]
+source = app, worker
+omit = 
+    */tests/*
+    */test_*.py
+    app/routes/*
+    app/templates/*
+    app/static/*
+    app/config.py
+    app/__init__.py
+    */__pycache__/*
+    */__init__.py
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    raise AssertionError
+    raise NotImplementedError
+    if __name__ == .__main__.:
+    if TYPE_CHECKING:
+    @abstractmethod
+

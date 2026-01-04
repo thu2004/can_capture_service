@@ -1,0 +1,36 @@
+server:
+  host: "0.0.0.0"
+  port: 5000
+  debug: false
+
+storage:
+  capture_dir: "./storage/captures"
+  metadata_dir: "./storage/metadata"
+  max_file_size_mb: 100
+  cleanup_old_files_days: 30
+  default_space_limit_mb: 100  # Default per-session space limit
+  global_space_limit_mb: 10000  # Global limit for all captures
+  enable_space_monitoring: true
+
+can:
+  default_bitrate: 1000000
+  supported_interfaces: ["can0", "can1", "vcan0"]
+  capture_format: "log"  # log, asc, trc
+  default_rotation:
+    strategy: "size"  # size, time, count
+    max_file_size_mb: 50
+    max_file_duration_seconds: 3600
+    max_files: 10
+    rotation_action: "rotate"  # rotate, stop, delete_oldest
+
+logging:
+  level: "INFO"
+  frontend:
+    file: "./logs/frontend.log"
+    max_size_mb: 100
+    backup_count: 2
+  backend:
+    file: "./logs/backend.log"
+    max_size_mb: 100
+    backup_count: 2
+

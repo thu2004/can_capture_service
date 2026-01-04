@@ -1,0 +1,274 @@
+{% extends "base.html" %}
+
+{% block title %}Interfaces - CAN Capture Service{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1>CAN Interfaces</h1>
+        <p class="lead">Manage and monitor CAN interfaces</p>
+        <button class="btn btn-primary mb-3" onclick="refreshInterfaces()">
+            <span id="refresh-spinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
+            Refresh
+        </button>
+    </div>
+</div>
+
+{% if error %}
+<div class="row mt-3">
+    <div class="col-12">
+        <div class="alert alert-danger" role="alert">
+            <strong>Error:</strong> {{ error }}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="row mt-3">
+    <div class="col-12">
+        {% if interfaces %}
+        <div class="row">
+            {% for interface in interfaces %}
+            <div class="col-md-6 col-lg-4 mb-3">
+                <div class="card h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">{{ interface.name }}</h5>
+                        <span class="badge {% if interface.status == 'up' %}bg-success{% elif interface.status == 'down' %}bg-danger{% else %}bg-secondary{% endif %}">
+                            {{ interface.status|upper }}
+                        </span>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text">
+                            <strong>Type:</strong> {{ interface.type or 'Unknown' }}<br>
+                            {% if interface.bitrate %}
+                            <strong>Bitrate:</strong> {{ "%.0f"|format(interface.bitrate / 1000) }} kbps<br>
+                            {% endif %}
+                            <strong>Capturing:</strong> 
+                            {% if interface.is_capturing %}
+                                <span class="text-success">Yes</span>
+                            {% else %}
+                                <span class="text-muted">No</span>
+                            {% endif %}
+                        </p>
+                        {% if interface.info %}
+                        <details>
+                            <summary class="text-muted small">Additional Info</summary>
+                            <pre class="small mt-2">{{ interface.info|tojson(indent=2) }}</pre>
+                        </details>
+                        {% endif %}
+                    </div>
+                    <div class="card-footer">
+                        <div class="btn-group" role="group">
+                            {% if interface.status == 'down' %}
+                            <button class="btn btn-sm btn-success" onclick="startInterface('{{ interface.name }}')" title="Start Interface">
+                                <span class="spinner-border spinner-border-sm d-none" id="start-spinner-{{ interface.name }}" role="status"></span>
+                                Start
+                            </button>
+                            {% elif interface.status == 'up' %}
+                            <button class="btn btn-sm btn-danger" onclick="stopInterface('{{ interface.name }}')" title="Stop Interface">
+                                <span class="spinner-border spinner-border-sm d-none" id="stop-spinner-{{ interface.name }}" role="status"></span>
+                                Stop
+                            </button>
+                            {% endif %}
+                            <button class="btn btn-sm btn-outline-primary" onclick="showInterfaceDetails('{{ interface.name }}')">
+                                Details
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="alert alert-info" role="alert">
+            <h5 class="alert-heading">No CAN Interfaces Found</h5>
+            <p>No CAN interfaces were detected on this system.</p>
+            <hr>
+            <p class="mb-0">Make sure CAN interfaces are configured and available.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Interface Details Modal -->
+<div class="modal fade" id="interfaceModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Interface Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="interfaceDetails">
+                Loading...
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function refreshInterfaces() {
+    const spinner = document.getElementById('refresh-spinner');
+    spinner.classList.remove('d-none');
+    window.location.reload();
+}
+
+function startInterface(name) {
+    const spinner = document.getElementById(`start-spinner-${name}`);
+    const button = event.target.closest('button');
+    
+    spinner.classList.remove('d-none');
+    button.disabled = true;
+    
+    fetch(`/api/interfaces/${name}/start`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({})
+    })
+    .then(response => response.json())
+    .then(data => {
+        spinner.classList.add('d-none');
+        button.disabled = false;
+        
+        if (data.success) {
+            showToast('success', data.message || `Interface ${name} started successfully`);
+            // Refresh page after a short delay
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            showToast('error', data.message || `Failed to start interface ${name}`);
+        }
+    })
+    .catch(error => {
+        spinner.classList.add('d-none');
+        button.disabled = false;
+        console.error('Error starting interface:', error);
+        showToast('error', `Error starting interface: ${error.message}`);
+    });
+}
+
+function stopInterface(name) {
+    const spinner = document.getElementById(`stop-spinner-${name}`);
+    const button = event.target.closest('button');
+    
+    if (!confirm(`Are you sure you want to stop interface ${name}?`)) {
+        return;
+    }
+    
+    spinner.classList.remove('d-none');
+    button.disabled = true;
+    
+    fetch(`/api/interfaces/${name}/stop`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        spinner.classList.add('d-none');
+        button.disabled = false;
+        
+        if (data.success) {
+            showToast('success', data.message || `Interface ${name} stopped successfully`);
+            // Refresh page after a short delay
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            showToast('error', data.message || `Failed to stop interface ${name}`);
+        }
+    })
+    .catch(error => {
+        spinner.classList.add('d-none');
+        button.disabled = false;
+        console.error('Error stopping interface:', error);
+        showToast('error', `Error stopping interface: ${error.message}`);
+    });
+}
+
+function showInterfaceDetails(name) {
+    fetch(`/api/interfaces/${name}/info`)
+        .then(response => response.json())
+        .then(data => {
+            const modalBody = document.getElementById('interfaceDetails');
+            modalBody.innerHTML = `
+                <dl class="row">
+                    <dt class="col-sm-4">Name:</dt>
+                    <dd class="col-sm-8">${data.name}</dd>
+                    
+                    <dt class="col-sm-4">Status:</dt>
+                    <dd class="col-sm-8">
+                        <span class="badge ${data.status === 'up' ? 'bg-success' : data.status === 'down' ? 'bg-danger' : 'bg-secondary'}">
+                            ${data.status.toUpperCase()}
+                        </span>
+                    </dd>
+                    
+                    <dt class="col-sm-4">Type:</dt>
+                    <dd class="col-sm-8">${data.type || 'Unknown'}</dd>
+                    
+                    ${data.bitrate ? `
+                    <dt class="col-sm-4">Bitrate:</dt>
+                    <dd class="col-sm-8">${(data.bitrate / 1000).toFixed(0)} kbps</dd>
+                    ` : ''}
+                    
+                    <dt class="col-sm-4">Capturing:</dt>
+                    <dd class="col-sm-8">${data.is_capturing ? 'Yes' : 'No'}</dd>
+                    
+                    ${data.active_session_id ? `
+                    <dt class="col-sm-4">Session ID:</dt>
+                    <dd class="col-sm-8"><code>${data.active_session_id}</code></dd>
+                    ` : ''}
+                </dl>
+                ${data.info && Object.keys(data.info).length > 0 ? `
+                <h6>Additional Information:</h6>
+                <pre class="small">${JSON.stringify(data.info, null, 2)}</pre>
+                ` : ''}
+            `;
+            const modal = new bootstrap.Modal(document.getElementById('interfaceModal'));
+            modal.show();
+        })
+        .catch(error => {
+            console.error('Error fetching interface details:', error);
+            alert('Failed to load interface details');
+        });
+}
+
+function showToast(type, message) {
+    // Create toast notification
+    const toastContainer = document.getElementById('toast-container') || createToastContainer();
+    const toast = document.createElement('div');
+    toast.className = `toast align-items-center text-white bg-${type === 'success' ? 'success' : 'danger'} border-0`;
+    toast.setAttribute('role', 'alert');
+    toast.setAttribute('aria-live', 'assertive');
+    toast.setAttribute('aria-atomic', 'true');
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">${message}</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    `;
+    toastContainer.appendChild(toast);
+    const bsToast = new bootstrap.Toast(toast);
+    bsToast.show();
+    toast.addEventListener('hidden.bs.toast', () => toast.remove());
+}
+
+function createToastContainer() {
+    const container = document.createElement('div');
+    container.id = 'toast-container';
+    container.className = 'toast-container position-fixed top-0 end-0 p-3';
+    container.style.zIndex = '9999';
+    document.body.appendChild(container);
+    return container;
+}
+</script>
+{% endblock %}
+

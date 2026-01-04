@@ -1,0 +1,398 @@
+{% extends "base.html" %}
+
+{% block title %}Log Viewer - CAN Capture Service{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1>Log Viewer</h1>
+        <p class="lead">Real-time application logs</p>
+    </div>
+</div>
+
+<!-- Log Info Card -->
+<div class="row mt-3">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Log File Information</h5>
+                <button class="btn btn-sm btn-outline-primary" onclick="refreshLogInfo()">
+                    <span class="spinner-border spinner-border-sm d-none" id="infoSpinner" role="status"></span>
+                    Refresh Info
+                </button>
+            </div>
+            <div class="card-body" id="logInfo">
+                <div class="text-center">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Log Controls -->
+<div class="row mt-3">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Log Controls</h5>
+            </div>
+            <div class="card-body">
+                <div class="row align-items-end">
+                    <div class="col-md-3">
+                        <label class="form-label">Log Type:</label>
+                        <div class="btn-group" role="group" aria-label="Log type selection">
+                            <input type="radio" class="btn-check" name="logType" id="logTypeFrontend" value="frontend" autocomplete="off" onchange="onLogTypeChange()">
+                            <label class="btn btn-outline-primary" for="logTypeFrontend">Frontend</label>
+                            
+                            <input type="radio" class="btn-check" name="logType" id="logTypeBackend" value="backend" autocomplete="off" checked onchange="onLogTypeChange()">
+                            <label class="btn btn-outline-primary" for="logTypeBackend">Backend/Workers</label>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="linesInput" class="form-label">Lines to display:</label>
+                        <input type="number" class="form-control" id="linesInput" value="100" min="10" max="10000" step="10">
+                    </div>
+                    <div class="col-md-2">
+                        <label for="autoRefresh" class="form-label">Auto-refresh interval (seconds):</label>
+                        <input type="number" class="form-control" id="autoRefresh" value="5" min="1" max="60" step="1">
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-check form-switch mt-3">
+                            <input class="form-check-input" type="checkbox" id="autoRefreshToggle" checked>
+                            <label class="form-check-label" for="autoRefreshToggle">
+                                Enable auto-refresh
+                            </label>
+                        </div>
+                        <div class="mt-2">
+                            <button class="btn btn-primary" onclick="loadLogs()">
+                                <span class="spinner-border spinner-border-sm d-none" id="loadSpinner" role="status"></span>
+                                Load Logs
+                            </button>
+                            <button class="btn btn-secondary" onclick="clearLogDisplay()">Clear Display</button>
+                            <button class="btn btn-success" onclick="scrollToBottom()">Scroll to Bottom</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Log Display -->
+<div class="row mt-3">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Log Output</h5>
+                <div>
+                    <span class="badge bg-secondary" id="lineCount">0 lines</span>
+                    <span class="badge bg-info ms-2" id="lastUpdate">Never</span>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div id="logDisplay" class="log-display">
+                    <div class="text-center p-4">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading logs...</span>
+                        </div>
+                        <p class="mt-2 text-muted">Loading logs...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_head %}
+<style>
+.log-display {
+    background-color: #1e1e1e;
+    color: #d4d4d4;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    max-height: 600px;
+    overflow-y: auto;
+    padding: 15px;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.log-line {
+    margin: 0;
+    padding: 2px 0;
+    border-bottom: 1px solid #2d2d2d;
+}
+
+.log-line:hover {
+    background-color: #2d2d2d;
+}
+
+.log-line.error {
+    color: #f48771;
+}
+
+.log-line.warning {
+    color: #dcdcaa;
+}
+
+.log-line.info {
+    color: #4ec9b0;
+}
+
+.log-line.debug {
+    color: #9cdcfe;
+}
+
+.log-timestamp {
+    color: #808080;
+    margin-right: 10px;
+}
+
+.log-level {
+    font-weight: bold;
+    margin-right: 10px;
+    min-width: 60px;
+    display: inline-block;
+}
+
+.log-message {
+    flex: 1;
+}
+</style>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let autoRefreshInterval = null;
+let lastScrollPosition = 0;
+let isUserScrolling = false;
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    refreshLogInfo();
+    loadLogs();
+    setupAutoRefresh();
+    
+    // Monitor scroll position
+    const logDisplay = document.getElementById('logDisplay');
+    logDisplay.addEventListener('scroll', function() {
+        const isAtBottom = logDisplay.scrollHeight - logDisplay.scrollTop <= logDisplay.clientHeight + 10;
+        isUserScrolling = !isAtBottom;
+    });
+});
+
+function getLogType() {
+    const selected = document.querySelector('input[name="logType"]:checked');
+    return selected ? selected.value : 'backend';
+}
+
+function onLogTypeChange() {
+    // Reload logs and info when log type changes
+    refreshLogInfo();
+    loadLogs();
+}
+
+function refreshLogInfo() {
+    const spinner = document.getElementById('infoSpinner');
+    spinner.classList.remove('d-none');
+    
+    const logType = getLogType();
+    fetch(`/api/logs/info?type=${logType}`)
+        .then(response => response.json())
+        .then(data => {
+            spinner.classList.add('d-none');
+            const logInfo = document.getElementById('logInfo');
+            
+            if (data.error) {
+                logInfo.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
+                return;
+            }
+            
+            if (!data.exists) {
+                logInfo.innerHTML = `<div class="alert alert-warning">Log file not found at: ${data.path}</div>`;
+                return;
+            }
+            
+            const sizePercent = data.size_percent || 0;
+            const sizeClass = sizePercent > 90 ? 'danger' : sizePercent > 75 ? 'warning' : 'success';
+            
+            logInfo.innerHTML = `
+                <div class="row">
+                    <div class="col-md-3">
+                        <p><strong>File Path:</strong><br><code>${data.path}</code></p>
+                    </div>
+                    <div class="col-md-3">
+                        <p><strong>File Size:</strong> ${data.size_mb.toFixed(2)} MB / ${data.max_size_mb} MB</p>
+                        <div class="progress" style="height: 20px;">
+                            <div class="progress-bar bg-${sizeClass}" 
+                                 role="progressbar" 
+                                 style="width: ${sizePercent}%"
+                                 aria-valuenow="${sizePercent}" 
+                                 aria-valuemin="0" 
+                                 aria-valuemax="100">
+                                ${sizePercent.toFixed(1)}%
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <p><strong>Total Lines:</strong> ${data.line_count.toLocaleString()}</p>
+                        <p><strong>Last Modified:</strong><br>${new Date(data.modified * 1000).toLocaleString()}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <p><strong>Log Type:</strong> 
+                            <span class="badge ${data.type === 'frontend' ? 'bg-primary' : 'bg-info'}">${data.type === 'frontend' ? 'Frontend' : 'Backend/Workers'}</span>
+                        </p>
+                        <p><strong>Status:</strong> 
+                            <span class="badge bg-success">Active</span>
+                        </p>
+                    </div>
+                </div>
+            `;
+        })
+        .catch(error => {
+            spinner.classList.add('d-none');
+            document.getElementById('logInfo').innerHTML = 
+                `<div class="alert alert-danger">Error loading log info: ${error.message}</div>`;
+        });
+}
+
+function loadLogs() {
+    const spinner = document.getElementById('loadSpinner');
+    const linesInput = document.getElementById('linesInput');
+    const lines = parseInt(linesInput.value) || 100;
+    const logType = getLogType();
+    
+    spinner.classList.remove('d-none');
+    
+    fetch(`/api/logs/tail?lines=${lines}&type=${logType}`)
+        .then(response => response.json())
+        .then(data => {
+            spinner.classList.add('d-none');
+            
+            if (data.error) {
+                document.getElementById('logDisplay').innerHTML = 
+                    `<div class="alert alert-danger p-3">${data.error}</div>`;
+                return;
+            }
+            
+            displayLogs(data.lines);
+            document.getElementById('lineCount').textContent = 
+                `${data.returned_lines.toLocaleString()} / ${data.total_lines.toLocaleString()} lines`;
+            document.getElementById('lastUpdate').textContent = 
+                `Updated: ${new Date().toLocaleTimeString()}`;
+        })
+        .catch(error => {
+            spinner.classList.add('d-none');
+            document.getElementById('logDisplay').innerHTML = 
+                `<div class="alert alert-danger p-3">Error loading logs: ${error.message}</div>`;
+        });
+}
+
+function displayLogs(lines) {
+    const logDisplay = document.getElementById('logDisplay');
+    const wasAtBottom = logDisplay.scrollHeight - logDisplay.scrollTop <= logDisplay.clientHeight + 10;
+    
+    // Clear and rebuild log display
+    logDisplay.innerHTML = '';
+    
+    lines.forEach(line => {
+        const logLine = document.createElement('div');
+        logLine.className = 'log-line';
+        
+        // Parse log line to extract level and message
+        const match = line.match(/^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) - ([\w.]+) - (\w+) - (.*)$/);
+        
+        if (match) {
+            const [, timestamp, logger, level, message] = match;
+            logLine.className = `log-line ${level.toLowerCase()}`;
+            logLine.innerHTML = `
+                <span class="log-timestamp">${timestamp}</span>
+                <span class="log-level">[${level}]</span>
+                <span class="log-message">${escapeHtml(message)}</span>
+            `;
+        } else {
+            logLine.textContent = line;
+        }
+        
+        logDisplay.appendChild(logLine);
+    });
+    
+    // Auto-scroll to bottom if user was at bottom or if it's the first load
+    if (wasAtBottom || !isUserScrolling) {
+        setTimeout(() => {
+            logDisplay.scrollTop = logDisplay.scrollHeight;
+        }, 10);
+    }
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function clearLogDisplay() {
+    document.getElementById('logDisplay').innerHTML = 
+        '<div class="text-center p-4 text-muted">Log display cleared. Click "Load Logs" to reload.</div>';
+    document.getElementById('lineCount').textContent = '0 lines';
+}
+
+function scrollToBottom() {
+    const logDisplay = document.getElementById('logDisplay');
+    logDisplay.scrollTop = logDisplay.scrollHeight;
+    isUserScrolling = false;
+}
+
+function setupAutoRefresh() {
+    const toggle = document.getElementById('autoRefreshToggle');
+    const intervalInput = document.getElementById('autoRefresh');
+    
+    toggle.addEventListener('change', function() {
+        if (this.checked) {
+            startAutoRefresh();
+        } else {
+            stopAutoRefresh();
+        }
+    });
+    
+    intervalInput.addEventListener('change', function() {
+        if (toggle.checked) {
+            stopAutoRefresh();
+            startAutoRefresh();
+        }
+    });
+    
+    if (toggle.checked) {
+        startAutoRefresh();
+    }
+}
+
+function startAutoRefresh() {
+    stopAutoRefresh();
+    const interval = parseInt(document.getElementById('autoRefresh').value) * 1000 || 5000;
+    
+    autoRefreshInterval = setInterval(() => {
+        if (!isUserScrolling) {
+            loadLogs();
+        }
+        // Only refresh info occasionally to reduce load
+        if (Math.random() < 0.2) {  // 20% chance each interval
+            refreshLogInfo();
+        }
+    }, interval);
+}
+
+function stopAutoRefresh() {
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+        autoRefreshInterval = null;
+    }
+}
+</script>
+{% endblock %}
+
