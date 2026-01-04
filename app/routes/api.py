@@ -221,7 +221,10 @@ def stop_capture():
         data = request.get_json() or {}
         session_id = data.get('session_id')
         
+        logger.info(f'Stop capture request received for session: {session_id}')
+        
         if not session_id:
+            logger.warning('Stop capture request missing session_id')
             return jsonify({
                 'success': False,
                 'error': 'session_id is required'
@@ -234,15 +237,18 @@ def stop_capture():
         capture_service = CaptureService(capture_dir, metadata_dir, default_rotation)
         
         # Stop capture
+        logger.info(f'Calling capture_service.stop_capture for session: {session_id}')
         result = capture_service.stop_capture(session_id)
+        logger.info(f'Stop capture result: success={result.get("success")}, error={result.get("error")}')
         
         if result.get('success'):
             return jsonify(result), 200
         else:
+            logger.warning(f'Stop capture failed: {result.get("error")}')
             return jsonify(result), 400
             
     except Exception as e:
-        logger.error(f'Error stopping capture: {e}')
+        logger.error(f'Error stopping capture: {e}', exc_info=True)
         return jsonify({
             'success': False,
             'error': 'Failed to stop capture',
@@ -629,9 +635,9 @@ def tail_logs():
         }), 500
 
 
-@bp.route('/logs/info', methods=['GET'])
-def get_log_info():
-    """Get log file information"""
+@bp.route('/logs/clean', methods=['POST'])
+def clean_logs():
+    """Clean (truncate) log file"""
     try:
         from flask import request
         
@@ -643,57 +649,41 @@ def get_log_info():
         # Get appropriate log file based on type
         if log_type == 'frontend':
             log_file = Path(current_app.config.get('LOG_FILE', './logs/frontend.log'))
-            max_size_mb = current_app.config.get('LOG_MAX_SIZE_MB', 100)
         else:
             log_file = Path(current_app.config.get('BACKEND_LOG_FILE', './logs/backend.log'))
-            # Get backend max size from config
-            try:
-                from app.config import Config
-                config_data = Config._load_config()
-                backend_logging = config_data.get('logging', {}).get('backend', {})
-                max_size_mb = backend_logging.get('max_size_mb', 100)
-            except Exception:
-                max_size_mb = 100
         
         # Create log file and directory if they don't exist
         log_file.parent.mkdir(parents=True, exist_ok=True)
-        if not log_file.exists():
-            # Create empty log file
-            log_file.touch()
         
-        if not log_file.exists():
+        # Truncate the log file (clear all contents)
+        try:
+            with open(log_file, 'w') as f:
+                f.write('')
+            
+            logger.info(f'Log file cleaned: {log_file} (type: {log_type})')
+            
             return jsonify({
-                'exists': False,
+                'success': True,
+                'message': 'Log file cleaned successfully',
                 'path': str(log_file),
                 'type': log_type
             }), 200
-        
-        stat = log_file.stat()
-        file_size_mb = stat.st_size / (1024 * 1024)
-        
-        # Count lines in file
-        line_count = 0
-        try:
-            with open(log_file, 'r', encoding='utf-8') as f:
-                line_count = sum(1 for _ in f)
-        except Exception:
-            pass
-        
-        return jsonify({
-            'exists': True,
-            'path': str(log_file),
-            'size_mb': round(file_size_mb, 2),
-            'max_size_mb': max_size_mb,
-            'size_percent': round((file_size_mb / max_size_mb) * 100, 1) if max_size_mb > 0 else 0,
-            'line_count': line_count,
-            'modified': stat.st_mtime,
-            'type': log_type
-        }), 200
+        except PermissionError:
+            return jsonify({
+                'success': False,
+                'error': 'Permission denied. Cannot write to log file.'
+            }), 403
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': f'Failed to clean log file: {str(e)}'
+            }), 500
         
     except Exception as e:
-        logger.error(f'Error getting log info: {e}')
+        logger.error(f'Error cleaning log file: {e}')
         return jsonify({
-            'error': 'Failed to get log info',
+            'success': False,
+            'error': 'Failed to clean log file',
             'message': str(e)
         }), 500
 

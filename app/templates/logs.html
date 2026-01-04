@@ -10,28 +10,6 @@
     </div>
 </div>
 
-<!-- Log Info Card -->
-<div class="row mt-3">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="card-title mb-0">Log File Information</h5>
-                <button class="btn btn-sm btn-outline-primary" onclick="refreshLogInfo()">
-                    <span class="spinner-border spinner-border-sm d-none" id="infoSpinner" role="status"></span>
-                    Refresh Info
-                </button>
-            </div>
-            <div class="card-body" id="logInfo">
-                <div class="text-center">
-                    <div class="spinner-border" role="status">
-                        <span class="visually-hidden">Loading...</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
 <!-- Log Controls -->
 <div class="row mt-3">
     <div class="col-12">
@@ -73,6 +51,10 @@
                             </button>
                             <button class="btn btn-secondary" onclick="clearLogDisplay()">Clear Display</button>
                             <button class="btn btn-success" onclick="scrollToBottom()">Scroll to Bottom</button>
+                            <button class="btn btn-danger" onclick="cleanLogs()">
+                                <span class="spinner-border spinner-border-sm d-none" id="cleanSpinner" role="status"></span>
+                                Clean Logs
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -174,7 +156,6 @@ let isUserScrolling = false;
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
-    refreshLogInfo();
     loadLogs();
     setupAutoRefresh();
     
@@ -192,73 +173,68 @@ function getLogType() {
 }
 
 function onLogTypeChange() {
-    // Reload logs and info when log type changes
-    refreshLogInfo();
+    // Reload logs when log type changes
     loadLogs();
 }
 
-function refreshLogInfo() {
-    const spinner = document.getElementById('infoSpinner');
+function cleanLogs() {
+    if (!confirm('Are you sure you want to clean (truncate) the log file? This will remove all current log entries.')) {
+        return;
+    }
+    
+    const spinner = document.getElementById('cleanSpinner');
+    const logType = getLogType();
     spinner.classList.remove('d-none');
     
-    const logType = getLogType();
-    fetch(`/api/logs/info?type=${logType}`)
+    fetch(`/api/logs/clean?type=${logType}`, {
+        method: 'POST'
+    })
         .then(response => response.json())
         .then(data => {
             spinner.classList.add('d-none');
-            const logInfo = document.getElementById('logInfo');
             
-            if (data.error) {
-                logInfo.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
-                return;
+            if (data.success) {
+                showToast('success', data.message || 'Log file cleaned successfully');
+                // Reload logs after cleaning
+                setTimeout(() => {
+                    loadLogs();
+                }, 500);
+            } else {
+                showToast('error', data.error || 'Failed to clean log file');
             }
-            
-            if (!data.exists) {
-                logInfo.innerHTML = `<div class="alert alert-warning">Log file not found at: ${data.path}</div>`;
-                return;
-            }
-            
-            const sizePercent = data.size_percent || 0;
-            const sizeClass = sizePercent > 90 ? 'danger' : sizePercent > 75 ? 'warning' : 'success';
-            
-            logInfo.innerHTML = `
-                <div class="row">
-                    <div class="col-md-3">
-                        <p><strong>File Path:</strong><br><code>${data.path}</code></p>
-                    </div>
-                    <div class="col-md-3">
-                        <p><strong>File Size:</strong> ${data.size_mb.toFixed(2)} MB / ${data.max_size_mb} MB</p>
-                        <div class="progress" style="height: 20px;">
-                            <div class="progress-bar bg-${sizeClass}" 
-                                 role="progressbar" 
-                                 style="width: ${sizePercent}%"
-                                 aria-valuenow="${sizePercent}" 
-                                 aria-valuemin="0" 
-                                 aria-valuemax="100">
-                                ${sizePercent.toFixed(1)}%
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <p><strong>Total Lines:</strong> ${data.line_count.toLocaleString()}</p>
-                        <p><strong>Last Modified:</strong><br>${new Date(data.modified * 1000).toLocaleString()}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <p><strong>Log Type:</strong> 
-                            <span class="badge ${data.type === 'frontend' ? 'bg-primary' : 'bg-info'}">${data.type === 'frontend' ? 'Frontend' : 'Backend/Workers'}</span>
-                        </p>
-                        <p><strong>Status:</strong> 
-                            <span class="badge bg-success">Active</span>
-                        </p>
-                    </div>
-                </div>
-            `;
         })
         .catch(error => {
             spinner.classList.add('d-none');
-            document.getElementById('logInfo').innerHTML = 
-                `<div class="alert alert-danger">Error loading log info: ${error.message}</div>`;
+            showToast('error', `Error cleaning logs: ${error.message}`);
         });
+}
+
+function showToast(type, message) {
+    const toastContainer = document.getElementById('toast-container') || createToastContainer();
+    const toast = document.createElement('div');
+    toast.className = `toast align-items-center text-white bg-${type === 'success' ? 'success' : 'danger'} border-0`;
+    toast.setAttribute('role', 'alert');
+    toast.setAttribute('aria-live', 'assertive');
+    toast.setAttribute('aria-atomic', 'true');
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">${message}</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    `;
+    toastContainer.appendChild(toast);
+    const bsToast = new bootstrap.Toast(toast);
+    bsToast.show();
+    toast.addEventListener('hidden.bs.toast', () => toast.remove());
+}
+
+function createToastContainer() {
+    const container = document.createElement('div');
+    container.id = 'toast-container';
+    container.className = 'toast-container position-fixed top-0 end-0 p-3';
+    container.style.zIndex = '9999';
+    document.body.appendChild(container);
+    return container;
 }
 
 function loadLogs() {
@@ -379,10 +355,6 @@ function startAutoRefresh() {
     autoRefreshInterval = setInterval(() => {
         if (!isUserScrolling) {
             loadLogs();
-        }
-        // Only refresh info occasionally to reduce load
-        if (Math.random() < 0.2) {  // 20% chance each interval
-            refreshLogInfo();
         }
     }, interval);
 }

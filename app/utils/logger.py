@@ -198,3 +198,4 @@ def get_logger(name, log_type='backend'):
         # Return a child logger of the backend logger
         return logging.getLogger(f'backend.{name}')
 
+

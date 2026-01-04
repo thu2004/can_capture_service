@@ -43,6 +43,7 @@ class CaptureWorker:
             capture_dir: Directory for capture files
             metadata_dir: Directory for metadata files
         """
+        logger.debug(f'Initializing CaptureWorker with session_config: {session_config}')
         self.session_config = session_config
         self.capture_dir = Path(capture_dir)
         self.metadata_dir = Path(metadata_dir)
@@ -53,6 +54,8 @@ class CaptureWorker:
         self.space_limit_mb = session_config.get('space_limit_mb', 100.0)
         self.rotation_config = session_config.get('rotation', {})
         
+        logger.debug(f'Worker initialized: session_id={self.session_id}, interface={self.interface}, output_file={self.output_file}')
+        
         self.rotation_manager: Optional[RotationManager] = None
         self.current_file: Optional[Path] = None
         self.candump_process: Optional[subprocess.Popen] = None
@@ -62,13 +65,17 @@ class CaptureWorker:
         self.start_time = datetime.now()
         
         # Setup signal handlers
+        logger.debug('Setting up signal handlers')
         signal.signal(signal.SIGTERM, self._signal_handler)
         signal.signal(signal.SIGINT, self._signal_handler)
     
     def _signal_handler(self, signum, frame):
         """Handle termination signals"""
         logger.info(f'Received signal {signum}, stopping capture...')
+        logger.info(f'Setting should_stop=True, is_running={self.is_running}')
         self.should_stop = True
+        # Force the loop to check should_stop by ensuring we break out
+        self.is_running = False
     
     def _count_messages_in_file(self, file_path: Path) -> int:
         """
@@ -85,9 +92,10 @@ class CaptureWorker:
                 return 0
             # Count lines in file (each line is a CAN message from candump)
             with open(file_path, 'r') as f:
-                return sum(1 for _ in f)
+                count = sum(1 for _ in f)
+            return count
         except Exception as e:
-            logger.debug(f'Error counting messages: {e}')
+            logger.debug(f'Error counting messages: {e}', exc_info=True)
             return 0
     
     def _check_and_rotate(self):
@@ -142,6 +150,17 @@ class CaptureWorker:
         """Update session metadata file"""
         try:
             metadata_file = self.metadata_dir / f"{self.session_id}.json"
+            
+            # Load existing metadata to preserve fields like worker_pid
+            existing_metadata = {}
+            if metadata_file.exists():
+                try:
+                    with open(metadata_file, 'r') as f:
+                        existing_metadata = json.load(f)
+                except Exception as e:
+                    logger.debug(f'Could not load existing metadata: {e}')
+            
+            # Update metadata, preserving existing fields like worker_pid
             metadata = {
                 'session_id': self.session_id,
                 'interface': self.interface,
@@ -152,10 +171,20 @@ class CaptureWorker:
                 'rotation_info': self.rotation_manager.get_rotation_info() if self.rotation_manager else {}
             }
             
+            # Preserve important fields that should not be overwritten
+            if 'worker_pid' in existing_metadata:
+                metadata['worker_pid'] = existing_metadata['worker_pid']
+                logger.debug(f'Preserving worker_pid={metadata["worker_pid"]} from existing metadata')
+            
+            # Preserve other fields that might be set by the frontend service
+            for key in ['bitrate', 'filters', 'space_limit_mb', 'rotation', 'output_file']:
+                if key in existing_metadata and key not in metadata:
+                    metadata[key] = existing_metadata[key]
+            
             with open(metadata_file, 'w') as f:
                 json.dump(metadata, f, indent=2)
         except Exception as e:
-            logger.error(f'Error updating metadata: {e}')
+            logger.error(f'Error updating metadata: {e}', exc_info=True)
     
     def start(self) -> bool:
         """
@@ -164,30 +193,40 @@ class CaptureWorker:
         Returns:
             True if started successfully
         """
+        logger.debug(f'Starting capture worker for session {self.session_id}')
         try:
             # Check if candump is available
+            logger.debug('Checking if candump command is available')
             result = subprocess.run(['which', 'candump'], capture_output=True, text=True)
+            logger.debug(f'which candump result: returncode={result.returncode}')
             if result.returncode != 0:
                 logger.error('candump command not found. Please install can-utils package.')
                 return False
             
             # Initialize rotation manager
+            logger.debug('Initializing rotation manager')
             session_config = {
                 'rotation': self.rotation_config,
                 'space_limit_mb': self.space_limit_mb
             }
+            logger.debug(f'Rotation config: {session_config}')
             self.rotation_manager = RotationManager(session_config, self.capture_dir)
+            logger.debug('Rotation manager initialized')
             
             # Create output file
             self.current_file = self.capture_dir / self.output_file
+            logger.debug(f'Output file path: {self.current_file}')
             self.current_file.parent.mkdir(parents=True, exist_ok=True)
+            logger.debug(f'Output directory created/verified: {self.current_file.parent}')
             
             # Start candump process
             # candump -L -t z interface > output_file
             # -L: log file format on stdout (doesn't create separate log file)
             # -t z: timestamp format (relative time with microseconds)
+            logger.debug(f'Starting candump process for interface {self.interface}')
             try:
                 output_file_handle = open(self.current_file, 'a')
+                logger.debug(f'Opened output file: {self.current_file}')
                 self.candump_process = subprocess.Popen(
                     ['candump', '-L', '-t', 'z', self.interface],
                     stdout=output_file_handle,
@@ -195,12 +234,16 @@ class CaptureWorker:
                     text=True,
                     bufsize=1  # Line buffered
                 )
+                logger.debug(f'candump process started with PID: {self.candump_process.pid}')
                 
                 # Wait a moment to check if candump started successfully
+                logger.debug('Waiting 0.2 seconds to check if candump started successfully')
                 time.sleep(0.2)
                 
                 # Check if process exited immediately (indicates error)
-                if self.candump_process.poll() is not None:
+                poll_result = self.candump_process.poll()
+                logger.debug(f'candump process poll result: {poll_result} (None means still running)')
+                if poll_result is not None:
                     stderr = ''
                     try:
                         if self.candump_process.stderr:
@@ -210,6 +253,7 @@ class CaptureWorker:
                     
                     error_msg = f'candump failed to start: {stderr.strip() or "unknown error"}'
                     logger.error(error_msg)
+                    logger.debug(f'candump stderr: {stderr}')
                     output_file_handle.close()
                     self.candump_process = None
                     raise Exception(error_msg)
@@ -217,6 +261,7 @@ class CaptureWorker:
                 self.is_running = True
                 self.should_stop = False
                 logger.info(f'Capture worker started for interface {self.interface}, output: {self.current_file}')
+                logger.debug(f'Worker is_running={self.is_running}, should_stop={self.should_stop}')
             except Exception as e:
                 logger.error(f'Failed to start candump: {e}')
                 if 'output_file_handle' in locals():
@@ -231,29 +276,41 @@ class CaptureWorker:
             metadata_update_interval = 5.0  # Update metadata every N seconds
             last_rotation_check = time.time()
             last_metadata_update = time.time()
+            logger.debug(f'Starting monitor loop: rotation_check_interval={rotation_check_interval}s, metadata_update_interval={metadata_update_interval}s')
             
             while not self.should_stop and self.is_running:
                 try:
-                    # Check if candump process is still running
-                    if self.candump_process and self.candump_process.poll() is not None:
-                        # Process exited
-                        stderr = ''
-                        try:
-                            if self.candump_process.stderr:
-                                stderr = self.candump_process.stderr.read()
-                        except Exception:
-                            pass
-                        
-                        return_code = self.candump_process.returncode
-                        logger.error(f'candump process exited unexpectedly with code {return_code}: {stderr}')
-                        
-                        # Update metadata with error status
-                        self.is_running = False
-                        self._update_metadata()
-                        
-                        # Don't break immediately - let the finally block handle cleanup
-                        self.should_stop = True
+                    # Check if we should stop (signal may have been received)
+                    if self.should_stop:
+                        logger.info('should_stop flag is True, exiting loop')
                         break
+                    if not self.is_running:
+                        logger.info('is_running flag is False, exiting loop')
+                        break
+                    
+                    # Check if candump process is still running
+                    if self.candump_process:
+                        poll_result = self.candump_process.poll()
+                        if poll_result is not None:
+                            # Process exited
+                            stderr = ''
+                            try:
+                                if self.candump_process.stderr:
+                                    stderr = self.candump_process.stderr.read()
+                            except Exception:
+                                pass
+                            
+                            return_code = self.candump_process.returncode
+                            logger.error(f'candump process exited unexpectedly with code {return_code}: {stderr}')
+                            logger.debug(f'candump stderr: {stderr}')
+                            
+                            # Update metadata with error status
+                            self.is_running = False
+                            self._update_metadata()
+                            
+                            # Don't break immediately - let the finally block handle cleanup
+                            self.should_stop = True
+                            break
                 
                     # Check rotation periodically
                     current_time = time.time()
@@ -282,34 +339,43 @@ class CaptureWorker:
                     # Continue running unless it's a critical error
                     time.sleep(1)
             
+            logger.info('Capture worker main loop exited normally')
             return True
             
         except Exception as e:
-            logger.error(f'Error in capture worker: {e}')
+            logger.error(f'Error in capture worker: {e}', exc_info=True)
             self.is_running = False
             return False
         finally:
+            logger.info('Entering finally block, calling stop()')
             self.stop()
     
     def stop(self):
         """Stop capture worker"""
+        logger.info(f'Stopping capture worker for session {self.session_id}')
         logger.info('Stopping capture worker...')
         self.should_stop = True
         self.is_running = False
         
         # Stop candump process
         if self.candump_process:
+            logger.debug(f'Stopping candump process (PID: {self.candump_process.pid})')
             try:
                 # Check if process is still running
-                if self.candump_process.poll() is None:
+                poll_result = self.candump_process.poll()
+                logger.debug(f'candump process poll result: {poll_result}')
+                if poll_result is None:
                     # Process is still running, terminate it
+                    logger.debug('Sending SIGTERM to candump process')
                     self.candump_process.terminate()
                     # Wait for graceful shutdown
                     try:
+                        logger.debug('Waiting for candump to terminate (timeout: 5s)')
                         self.candump_process.wait(timeout=5)
                         logger.info('candump process terminated gracefully')
                     except subprocess.TimeoutExpired:
                         logger.warning('candump did not terminate gracefully, killing...')
+                        logger.debug('Sending SIGKILL to candump process')
                         self.candump_process.kill()
                         self.candump_process.wait()
                         logger.info('candump process killed')
@@ -321,35 +387,48 @@ class CaptureWorker:
                 logger.error(f'Error stopping candump process: {e}', exc_info=True)
             finally:
                 self.candump_process = None
+                logger.debug('Cleared candump_process reference')
+        else:
+            logger.debug('No candump process to stop')
         
         # Final message count and metadata update
+        logger.debug('Performing final metadata update')
         try:
             if self.current_file and self.current_file.exists():
+                logger.debug(f'Counting final messages in {self.current_file}')
                 self.message_count = self._count_messages_in_file(self.current_file)
             self._update_metadata()
         except Exception as e:
-            logger.error(f'Error updating final metadata: {e}')
+            logger.error(f'Error updating final metadata: {e}', exc_info=True)
         
         logger.info(f'Capture worker stopped. Total messages: {self.message_count}')
+        logger.debug(f'Worker stop complete for session {self.session_id}')
 
 
 def main():
     """Main entry point for capture worker process"""
+    logger.debug(f'Worker main() called with {len(sys.argv)} arguments')
     if len(sys.argv) < 2:
         print("Usage: capture_worker.py <session_config_json>")
         sys.exit(1)
     
     # Load session config from JSON
     config_json = sys.argv[1]
+    logger.debug(f'Loading session config from JSON (length: {len(config_json)} bytes)')
     session_config = json.loads(config_json)
+    logger.debug(f'Session config loaded: session_id={session_config.get("session_id")}, interface={session_config.get("interface")}')
     
     # Get directories from config or use defaults
     capture_dir = Path(session_config.get('capture_dir', './storage/captures'))
     metadata_dir = Path(session_config.get('metadata_dir', './storage/metadata'))
+    logger.debug(f'Directories: capture_dir={capture_dir}, metadata_dir={metadata_dir}')
     
     # Create worker and run
+    logger.debug('Creating CaptureWorker instance')
     worker = CaptureWorker(session_config, capture_dir, metadata_dir)
+    logger.debug('Starting worker')
     success = worker.start()
+    logger.debug(f'Worker start() returned: {success}')
     
     sys.exit(0 if success else 1)
 

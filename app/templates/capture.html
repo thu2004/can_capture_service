@@ -141,7 +141,8 @@
                                         </p>
                                     </div>
                                     {% if session.status == 'running' %}
-                                    <button class="btn btn-sm btn-danger" onclick="stopCapture('{{ session.session_id }}')">
+                                    <button class="btn btn-sm btn-danger" onclick="stopCapture('{{ session.session_id }}')" id="stop-btn-{{ session.session_id }}">
+                                        <span class="spinner-border spinner-border-sm d-none" id="stop-spinner-{{ session.session_id }}" role="status"></span>
                                         Stop
                                     </button>
                                     {% endif %}
@@ -263,7 +264,32 @@ document.getElementById('startCaptureForm').addEventListener('submit', async fun
 });
 
 async function stopCapture(sessionId) {
+    console.log(`[stopCapture] Starting stop for session: ${sessionId}`);
+    
+    // Find the button and show loading state
+    const button = document.getElementById(`stop-btn-${sessionId}`);
+    const spinner = document.getElementById(`stop-spinner-${sessionId}`);
+    
+    if (button) {
+        button.disabled = true;
+        if (spinner) {
+            spinner.classList.remove('d-none');
+        } else {
+            button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Stopping...';
+        }
+        console.log(`[stopCapture] Button disabled and spinner shown`);
+    } else {
+        console.warn(`[stopCapture] Button not found: stop-btn-${sessionId}, trying fallback`);
+        // Fallback: try to find button by onclick attribute
+        const fallbackButton = document.querySelector(`button[onclick*="${sessionId}"]`);
+        if (fallbackButton) {
+            fallbackButton.disabled = true;
+            fallbackButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Stopping...';
+        }
+    }
+    
     try {
+        console.log(`[stopCapture] Sending POST request to /api/capture/stop with session_id: ${sessionId}`);
         const response = await fetch('/api/capture/stop', {
             method: 'POST',
             headers: {
@@ -272,18 +298,59 @@ async function stopCapture(sessionId) {
             body: JSON.stringify({ session_id: sessionId })
         });
         
+        console.log(`[stopCapture] Response status: ${response.status} ${response.statusText}`);
         const data = await response.json();
+        console.log(`[stopCapture] Response data:`, data);
         
-        if (data.success) {
-            showToast('success', 'Capture stopped successfully');
-            setTimeout(() => {
-                window.location.reload();
-            }, 1000);
-        } else {
-            showToast('error', data.error || data.message || 'Failed to stop capture');
+        // Check both HTTP status and success field
+        if (!response.ok || !data.success) {
+            console.error(`[stopCapture] Stop failed - HTTP ${response.status}, success: ${data.success}, error: ${data.error || data.message}`);
+            // Re-enable button on error
+            if (button) {
+                button.disabled = false;
+                if (spinner) {
+                    spinner.classList.add('d-none');
+                } else {
+                    button.innerHTML = 'Stop';
+                }
+            }
+            const errorMsg = data.error || data.message || `Failed to stop capture (HTTP ${response.status})`;
+            showToast('error', errorMsg);
+            return;
         }
+        
+        // Success
+        showToast('success', data.message || 'Capture stopped successfully');
+        
+        // Update UI immediately without waiting for reload
+        const sessionCard = document.getElementById(`session-${sessionId}`);
+        if (sessionCard) {
+            // Update status badge
+            const badge = sessionCard.querySelector('.badge');
+            if (badge) {
+                badge.className = 'badge bg-secondary';
+                badge.textContent = 'STOPPED';
+            }
+            // Remove stop button
+            const stopButton = sessionCard.querySelector('button');
+            if (stopButton) {
+                stopButton.remove();
+            }
+        }
+        
+        // Reload after a short delay to get updated status
+        setTimeout(() => {
+            window.location.reload();
+        }, 1500);
+        
     } catch (error) {
-        showToast('error', `Error: ${error.message}`);
+        // Re-enable button on error
+        if (button) {
+            button.disabled = false;
+            button.innerHTML = 'Stop';
+        }
+        console.error('Error stopping capture:', error);
+        showToast('error', `Error: ${error.message || 'Failed to stop capture'}`);
     }
 }
 
@@ -351,7 +418,8 @@ setInterval(() => {
                                             </p>
                                         </div>
                                         ${session.status === 'running' ? `
-                                        <button class="btn btn-sm btn-danger" onclick="stopCapture('${session.session_id}')">
+                                        <button class="btn btn-sm btn-danger" onclick="stopCapture('${session.session_id}')" id="stop-btn-${session.session_id}">
+                                            <span class="spinner-border spinner-border-sm d-none" id="stop-spinner-${session.session_id}" role="status"></span>
                                             Stop
                                         </button>
                                         ` : ''}
