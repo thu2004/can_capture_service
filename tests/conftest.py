@@ -7,6 +7,7 @@ Licensed under the MIT License
 import pytest
 import tempfile
 import shutil
+import logging
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -190,4 +191,32 @@ def session_config(capture_dir, metadata_dir, default_rotation_config):
         'capture_dir': str(capture_dir),
         'metadata_dir': str(metadata_dir)
     }
+
+
+@pytest.fixture(autouse=True)
+def setup_test_logging():
+    """
+    Automatically setup test logging to prevent tests from writing to production logs.
+    This fixture runs before every test and ensures logging is configured for tests.
+    """
+    # Setup a test-specific logger that only writes to console, not files
+    # This prevents test logs from polluting production log files
+    backend_logger = logging.getLogger('backend')
+    
+    # Clear any existing handlers
+    backend_logger.handlers.clear()
+    
+    # Add a console handler for test output (optional - can be removed if not needed)
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    console_handler.setFormatter(formatter)
+    backend_logger.addHandler(console_handler)
+    backend_logger.setLevel(logging.DEBUG)
+    backend_logger.propagate = False
+    
+    yield
+    
+    # Cleanup after test
+    backend_logger.handlers.clear()
 

@@ -1,6 +1,7 @@
 """
 Main worker process for CAN capture using candump
 """
+import os
 import sys
 import signal
 import time
@@ -17,7 +18,16 @@ from worker.rotation_manager import RotationManager  # noqa: E402
 from app.utils.logger import setup_logging_standalone, get_logger  # noqa: E402
 
 # Initialize logging before using logger (backend logger for workers)
-setup_logging_standalone(log_type='backend')
+# Detect test environment to avoid writing test logs to production log file
+_is_test_env = (
+    os.environ.get('PYTEST_CURRENT_TEST') is not None or
+    'pytest' in sys.modules or
+    'unittest' in sys.modules
+)
+
+if not _is_test_env:
+    # Only setup logging in production - tests should mock this
+    setup_logging_standalone(log_type='backend')
 logger = get_logger(__name__, log_type='backend')
 
 
